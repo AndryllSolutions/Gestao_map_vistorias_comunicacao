@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard - Cadastro de Imóveis</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
+</head>
+<body class="bg-light p-3 p-md-4">
+
+  <header class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-4">
+  <div class="text-muted fst-italic">
+    Usuário conectado: <span id="usuario-nome">{{ usuario }}</span>
+  </div>
+  <a href="/logout" class="btn btn-outline-danger btn-sm">
+    <i class="bi bi-box-arrow-right"></i> Sair
+  </a>
+</header>
+
+    <form id="form-imovel" class="mb-4">
+      <input type="hidden" id="imovel-id" />
+      
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="endereco" class="form-label">Endereço</label>
+          <input type="text" id="endereco" class="form-control" placeholder="Rua Exemplo, 123" required />
+        </div>
+        <div class="col-md-6 mb-3">
+          <label for="preco" class="form-label">Preço (R$)</label>
+          <input type="number" step="0.01" id="preco" class="form-control" placeholder="100000" required />
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label for="descricao" class="form-label">Descrição</label>
+        <textarea id="descricao" class="form-control" placeholder="Detalhes do imóvel"></textarea>
+      </div>
+
+      <div class="d-flex gap-2 flex-column flex-sm-row">
+        <button type="submit" class="btn btn-primary w-100 w-sm-auto">Salvar</button>
+        <button type="button" class="btn btn-secondary w-100 w-sm-auto" id="btn-cancelar">Cancelar</button>
+      </div>
+    </form>
+
+    <hr />
+
+    <div class="table-responsive">
+      <table class="table table-striped" id="tabela-imoveis">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Endereço</th>
+            <th>Descrição</th>
+            <th>Preço (R$)</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="/static/js/dashboard.js"></script>
+  <script>
+    // Exemplo simples para setar o nome do usuário conectado
+    // Substitua pelo valor real do backend ou via API
+    document.getElementById('usuario-nome').textContent = "André Kaique"; 
+  </script>
+
+  <footer class="text-center mt-5 text-muted small">
+  &copy; {{ ano }} - Sistema de Cadastro de Imóveis | Andryll Solutions
+</footer>
+</body>
+</html>
