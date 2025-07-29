@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard Power BI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .chart-container {
+      background-color: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body class="bg-light p-3 p-md-4">
+
+  <header class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-bar-chart-line-fill"></i> Dashboard Power BI</h3>
+    <a href="/dashboard" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-left"></i> Voltar</a>
+  </header>
+
+  <div class="container-fluid">
+    <div class="row g-4">
+      <div class="col-md-6 chart-container">
+        <h5>Total de Comunicações</h5>
+        <canvas id="graficoTotal"></canvas>
+      </div>
+
+      <div class="col-md-6 chart-container">
+        <h5>Comunicações por Endereço</h5>
+        <canvas id="graficoEnderecos"></canvas>
+      </div>
+
+      <div class="col-md-6 chart-container">
+        <h5>Tipos de Imóveis</h5>
+        <canvas id="graficoTipos"></canvas>
+      </div>
+
+      <div class="col-md-6 chart-container">
+        <h5>Tipos de Comunicado</h5>
+        <canvas id="graficoComunicado"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    fetch("/api/comunicacoes/dados")
+      .then(res => res.json())
+      .then(dados => {
+        // Gráfico de total
+        new Chart(document.getElementById("graficoTotal"), {
+          type: "bar",
+          data: {
+            labels: ["Total"],
+            datasets: [{
+              label: "Comunicações",
+              data: [dados.total],
+              backgroundColor: "#0d6efd"
+            }]
+          }
+        });
+
+        // Gráfico por endereço
+        new Chart(document.getElementById("graficoEnderecos"), {
+          type: "bar",
+          data: {
+            labels: Object.keys(dados.por_endereco),
+            datasets: [{
+              label: "Qtd",
+              data: Object.values(dados.por_endereco),
+              backgroundColor: "#198754"
+            }]
+          }
+        });
+
+        // Gráfico por tipo_imovel
+        new Chart(document.getElementById("graficoTipos"), {
+          type: "pie",
+          data: {
+            labels: Object.keys(dados.por_tipo_imovel),
+            datasets: [{
+              data: Object.values(dados.por_tipo_imovel),
+              backgroundColor: ["#0d6efd", "#dc3545", "#ffc107", "#20c997"]
+            }]
+          }
+        });
+
+        // Gráfico por comunicado
+        new Chart(document.getElementById("graficoComunicado"), {
+          type: "doughnut",
+          data: {
+            labels: Object.keys(dados.por_comunicado),
+            datasets: [{
+              data: Object.values(dados.por_comunicado),
+              backgroundColor: ["#6610f2", "#fd7e14", "#6f42c1", "#198754"]
+            }]
+          }
+        });
+      });
+  </script>
+</body>
+</html>

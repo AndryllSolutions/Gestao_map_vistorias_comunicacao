@@ -1,11 +1,21 @@
-from flask import Flask, request, jsonify, render_template, redirect, session,url_for
+from flask import Flask, request, jsonify, render_template, redirect, session,url_for,send_file
 from flask_cors import CORS
-from models import db, User, Imovel,ComunicacaoObra
+from models import db, User, Imovel,ComunicacaoObra,VistoriaImovel
 import os
 from datetime import datetime
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from flask_migrate import Migrate
+from textwrap import wrap
+
+
+
 app = Flask(__name__, static_folder='static', template_folder='templates')
+app.jinja_env.globals['now'] = datetime.now
 app.secret_key = "Aninha_pitukinha"  # 🔒 use algo mais seguro em produção!
 CORS(app)
+migrate = Migrate(app, db)
 
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), 'database.db')
@@ -15,6 +25,11 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
+    if not User.query.filter_by(email="admin@obra.com").first():
+        admin = User(email="admin@obra.com", password="admin123", cargo="admin")
+        db.session.add(admin)
+        db.session.commit()
+        print("✅ Admin padrão criado: admin@obra.com / admin123")
 
 # Páginas
 @app.route("/")
@@ -23,11 +38,12 @@ def index():
 
 @app.route("/dashboard")
 def dashboard():
-    if "usuario" not in session:
-        return redirect("/")
-    usuario = session["usuario"]
-    ano_atual = datetime.now().year
-    return render_template("dashboard.html", usuario=usuario, ano=ano_atual)
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    user = User.query.get(session["user_id"])
+    return render_template("dashboard.html", usuario=user.email, cargo=user.cargo, ano=datetime.now().year)
+
 
 
 
@@ -57,21 +73,17 @@ def cadastro_form():
 # Login
 @app.route("/login", methods=["POST"])
 def login():
-    data = request.json
+    data = request.get_json()
     email = data.get("email")
-    senha = data.get("senha")
+    password = data.get("password")
 
-    user = User.query.filter_by(email=email).first()
-
-    if not user:
-        return jsonify({"mensagem": "E-mail não cadastrado"}), 404
-
-    if user.password != senha:
-        return jsonify({"mensagem": "Senha incorreta"}), 401
-
-    # Salva usuário na sessão
-    session["usuario"] = email
-    return jsonify({"mensagem": "Login bem-sucedido", "usuario": email}), 200
+    user = User.query.filter_by(email=email, password=password).first()
+    if user:
+        session["user_id"] = user.id
+        session["usuario"] = user.email
+        session["cargo"] = user.cargo
+        return jsonify({"redirect": "/dashboard"})  # JSON com redirect
+    return jsonify({"error": "Login inválido"}), 401
 
 
 @app.route("/logout")
@@ -209,6 +221,294 @@ def comunicacao_passo3():
     return render_template("etapa3.html")
 
 
+@app.route("/gerenciar-usuarios", methods=["GET", "POST"])
+def gerenciar_usuarios():
+    if "usuario" not in session:
+        return redirect("/login")
+
+    user = User.query.filter_by(email=session["usuario"]).first()
+    if user.cargo != "admin":
+        return "Acesso negado", 403
+
+    if request.method == "POST":
+        usuario_id = request.form.get("usuario_id")
+        novo_cargo = request.form.get("novo_cargo")
+        usuario_alvo = User.query.get(usuario_id)
+        if usuario_alvo:
+            usuario_alvo.cargo = novo_cargo
+            db.session.commit()
+    usuarios = User.query.all()
+    return render_template("gerenciar_usuarios.html", usuarios=usuarios)
+
+@app.route('/atualizar_cargo/<int:user_id>', methods=['POST'])
+def atualizar_cargo(user_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    user_logado = User.query.get(session['user_id'])
+    if user_logado.cargo != 'admin':
+        return "Acesso negado", 403
+
+    novo_cargo = request.form['novo_cargo']
+    usuario = User.query.get(user_id)
+    if usuario:
+        usuario.cargo = novo_cargo
+        db.session.commit()
+    return redirect(url_for('gerenciar_usuarios'))
+
+@app.route('/excluir_usuario/<int:user_id>', methods=['POST'])
+def excluir_usuario(user_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    user_logado = User.query.get(session['user_id'])
+    if user_logado.cargo != 'admin':
+        return "Acesso negado", 403
+
+    usuario = User.query.get(user_id)
+    if usuario and usuario.id != user_logado.id:  # Impede excluir a si mesmo
+        db.session.delete(usuario)
+        db.session.commit()
+
+    return redirect(url_for('gerenciar_usuarios'))
+
+
+
+@app.route("/api/comunicacoes/dados")
+def comunicacoes_dados():
+    registros = ComunicacaoObra.query.all()
+
+    total = len(registros)
+
+    por_endereco = {}
+    por_comunicado = {}
+    por_tipo = {}
+
+    for r in registros:
+        # Endereço
+        por_endereco[r.endereco] = por_endereco.get(r.endereco, 0) + 1
+
+        # Comunicado
+        por_comunicado[r.comunicado] = por_comunicado.get(r.comunicado, 0) + 1
+
+        # Tipo de imóvel (pode ter vários por registro)
+        if r.tipo_imovel:
+            tipos = r.tipo_imovel.split(",")
+            for tipo in tipos:
+                tipo = tipo.strip()
+                por_tipo[tipo] = por_tipo.get(tipo, 0) + 1
+
+    return jsonify({
+        "total": total,
+        "por_endereco": por_endereco,
+        "por_comunicado": por_comunicado,
+        "por_tipo": por_tipo
+    })
+
+@app.route("/dashboard_power_bi")
+def dashboard_power_bi():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    user = User.query.get(session["user_id"])
+    return render_template("dashboard_power_bi.html", usuario=user.email, cargo=user.cargo)
+
+@app.route("/vistoria", methods=["GET", "POST"])
+def vistoria():
+    if request.method == "POST":
+        data_1 = request.form.get("data_1")
+        hora_1 = request.form.get("hora_1")
+        data_2 = request.form.get("data_2")
+        hora_2 = request.form.get("hora_2")
+        data_3 = request.form.get("data_3")
+        hora_3 = request.form.get("hora_3")
+
+        nome_responsavel = request.form.get("nome_responsavel")
+        cpf_responsavel = request.form.get("cpf_responsavel")
+        tipo_vinculo = request.form.get("tipo_vinculo")
+
+        municipio = request.form.get("municipio")
+        bairro = request.form.get("bairro")
+        rua = request.form.get("rua")
+        numero = request.form.get("numero")
+        complemento = request.form.get("complemento")
+        celular = request.form.get("celular")
+
+        tipo_imovel = request.form.get("tipo_imovel")
+        soleira = request.form.get("soleira")
+        calcada_lista = request.form.getlist("calcada")
+        calcada = ", ".join(calcada_lista)
+        observacoes = request.form.get("observacoes")
+
+        nova = VistoriaImovel(
+            data_1=data_1, hora_1=hora_1,
+            data_2=data_2, hora_2=hora_2,
+            data_3=data_3, hora_3=hora_3,
+            nome_responsavel=nome_responsavel,
+            cpf_responsavel=cpf_responsavel,
+            tipo_vinculo=tipo_vinculo,
+            municipio=municipio, bairro=bairro, rua=rua, numero=numero,
+            complemento=complemento, celular=celular,
+            tipo_imovel=tipo_imovel, soleira=soleira,
+            calcada=calcada, observacoes=observacoes
+        )
+        db.session.add(nova)
+        db.session.commit()
+        return redirect(url_for("vistoria"))  # redireciona após salvar
+
+    return render_template("vistoria_form.html")
+
+    if request.method == "POST":
+        data_1 = request.form.get("data_1")
+        hora_1 = request.form.get("hora_1")
+        data_2 = request.form.get("data_2")
+        hora_2 = request.form.get("hora_2")
+        data_3 = request.form.get("data_3")
+        hora_3 = request.form.get("hora_3")
+
+        municipio = request.form.get("municipio")
+        bairro = request.form.get("bairro")
+        rua = request.form.get("rua")
+        numero = request.form.get("numero")
+        complemento = request.form.get("complemento")
+        celular = request.form.get("celular")
+
+        tipo_imovel = request.form.get("tipo_imovel")
+        soleira = request.form.get("soleira")
+        calcada_lista = request.form.getlist("calcada")
+        calcada = ", ".join(calcada_lista)
+        observacoes = request.form.get("observacoes")
+
+        nova = VistoriaImovel(
+            data_1=data_1, hora_1=hora_1,
+            data_2=data_2, hora_2=hora_2,
+            data_3=data_3, hora_3=hora_3,
+            municipio=municipio, bairro=bairro, rua=rua, numero=numero,
+            complemento=complemento, celular=celular,
+            tipo_imovel=tipo_imovel, soleira=soleira,
+            calcada=calcada, observacoes=observacoes
+        )
+        db.session.add(nova)
+        db.session.commit()
+        return redirect(url_for("vistoria"))  # redireciona após salvar
+
+    return render_template("vistoria_form.html")
+
+@app.route("/vistorias")
+def listar_vistorias():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    vistorias = VistoriaImovel.query.order_by(VistoriaImovel.id.desc()).all()
+    return render_template("vistorias_dashboard.html", vistorias=vistorias)
+
+
+from flask import send_file
+from io import BytesIO
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from textwrap import wrap
+from models import VistoriaImovel
+
+@app.route("/vistoria/laudo/<int:id>")
+def gerar_laudo_vistoria(id):
+    vistoria = VistoriaImovel.query.get_or_404(id)
+
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    largura, altura = A4
+    y = 800
+
+    def draw_wrapped_text(texto, x, y, width=100, line_height=15, font="Helvetica", font_size=11):
+        c.setFont(font, font_size)
+        for linha in wrap(texto, width=width):
+            c.drawString(x, y, linha)
+            y -= line_height
+        return y
+
+    # Título
+    c.setFont("Helvetica-Bold", 16)
+    c.drawCentredString(largura / 2, y, "LAUDO DA VISTORIA CAUTELAR")
+    y -= 40
+
+    # Dados da vistoria
+    c.setFont("Helvetica", 12)
+    c.drawString(50, y, f"Data da Vistoria: {vistoria.data_1 or 'N/A'} {vistoria.hora_1 or ''}")
+    y -= 20
+    c.drawString(50, y, f"Responsável: {vistoria.nome_responsavel or 'N/A'} - CPF: {vistoria.cpf_responsavel or 'N/A'}")
+    y -= 20
+    c.drawString(50, y, f"Vínculo: {vistoria.tipo_vinculo or 'N/A'}")
+    y -= 20
+    c.drawString(50, y, f"Endereço: {vistoria.rua}, {vistoria.numero} - {vistoria.bairro}, {vistoria.municipio}")
+    y -= 20
+    c.drawString(50, y, f"Tipo de Imóvel: {vistoria.tipo_imovel}")
+    y -= 20
+    c.drawString(50, y, f"Soleira: {vistoria.soleira}")
+    y -= 20
+    c.drawString(50, y, f"Calçada: {vistoria.calcada}")
+    y -= 30
+
+    # Norma Técnica
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, y, "Norma Técnica")
+    y -= 20
+    y = draw_wrapped_text(
+        "ABNT NBR 12722:1992 - Discriminação de serviços para construção de edifícios.\n"
+        "A vistoria resguarda os interesses das partes envolvidas e do público em geral, "
+        "devendo ser realizada por profissional especializado, incluindo planta de localização, "
+        "relatório descritivo e registros fotográficos.",
+        50, y
+    )
+    y -= 10
+
+    # LGPD
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, y, "Informações Legais - LGPD")
+    y -= 20
+    y = draw_wrapped_text(
+        "Em conformidade com a Lei Geral de Proteção de Dados (LGPD), realizamos a vistoria cautelar no imóvel, "
+        "coletando apenas os dados necessários. As informações serão utilizadas exclusivamente para os fins da vistoria "
+        "e não serão compartilhadas sem consentimento, salvo por exigência legal.",
+        50, y
+    )
+    y -= 10
+
+    # Observações
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, y, "Observações Finais:")
+    y -= 20
+    observacoes = vistoria.observacoes or "Sem observações."
+    y = draw_wrapped_text(observacoes, 50, y)
+
+    y -= 20
+    # Ciência do Morador
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, y, "Ciência do Morador quanto à Vistoria")
+    y -= 20
+    ciencia_texto = (
+        f"Eu, {vistoria.nome_responsavel or '________________'}, portador do CPF {vistoria.cpf_responsavel or '________________'}, "
+        "declaro que forneci de livre e espontânea vontade todas as informações referentes ao meu imóvel e estou ciente "
+        "das fotografias e observações registradas durante a vistoria. Confirmo que estou de acordo com o conteúdo deste laudo."
+    )
+    y = draw_wrapped_text(ciencia_texto, 50, y)
+
+    # Assinatura
+    y -= 40
+    c.drawString(50, y, "________________________________________")
+    y -= 15
+    c.drawString(50, y, "Assinatura do Responsável")
+
+    c.save()
+    buffer.seek(0)
+
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=f"laudo_vistoria_{id}.pdf",
+        mimetype='application/pdf'
+    )
+
+   
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
