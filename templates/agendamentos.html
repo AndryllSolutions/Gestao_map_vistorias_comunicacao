@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Agendamentos de Vistoria</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
+</head>
+<body class="bg-light p-3">
+
+  <div class="container bg-white p-4 rounded shadow">
+    <header class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h3><i class="bi bi-calendar-check"></i> Agendamentos de Vistoria</h3>
+        <p class="text-muted small mb-0">Lista de agendamentos registrados no sistema.</p>
+      </div>
+      <div>
+        <a href="/agendar" class="btn btn-success me-2">
+          <i class="bi bi-plus-circle"></i> Novo Agendamento
+        </a>
+        <a href="/dashboard" class="btn btn-secondary">
+          <i class="bi bi-arrow-left"></i> Voltar ao Dashboard
+        </a>
+      </div>
+    </header>
+<form method="get" class="row g-2 mb-4 align-items-end">
+  <div class="col-md-3">
+    <label>Nome</label>
+    <input type="text" name="nome" value="{{ request.args.get('nome', '') }}" class="form-control" placeholder="Nome do morador">
+  </div>
+  <div class="col-md-3">
+    <label>Data</label>
+    <input type="date" name="data" value="{{ request.args.get('data', '') }}" class="form-control">
+  </div>
+  <div class="col-md-3">
+    <label>Bairro</label>
+    <input type="text" name="bairro" value="{{ request.args.get('bairro', '') }}" class="form-control">
+  </div>
+  <div class="col-md-3">
+    <label>Cidade</label>
+    <input type="text" name="cidade" value="{{ request.args.get('cidade', '') }}" class="form-control">
+  </div>
+  <div class="col-md-6 mt-2">
+    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel-fill"></i> Filtrar</button>
+  </div>
+  <div class="col-md-6 mt-2">
+    <a href="/agendamentos" class="btn btn-outline-secondary w-100"><i class="bi bi-x-circle"></i> Limpar filtros</a>
+  </div>
+</form>
+
+
+    <div class="table-responsive">
+      <table class="table table-striped table-hover align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>ID</th>
+            <th>Morador</th>
+            <th>Celular</th>
+            <th>Endereço</th>
+            <th>Data</th>
+            <th>Hora</th>
+            <th>Observações</th>
+            <th>Ações</th>
+
+          </tr>
+        </thead>
+        <tbody>
+          {% for ag in agendamentos %}
+          <tr>
+            <td>{{ ag.id }}</td>
+            <td>{{ ag.nome_morador }}</td>
+            <td>{{ ag.celular }}</td>
+            <td>{{ ag.endereco }} - {{ ag.bairro }} / {{ ag.cidade }}</td>
+            <td>{{ ag.data_agendada.strftime('%d/%m/%Y') }}</td>
+            <td>{{ ag.hora_agendada.strftime('%H:%M') }}</td>
+            <td>{{ ag.observacoes or '---' }}</td>
+            <td class="text-center">
+  <a href="{{ url_for('editar_agendamento', agendamento_id=ag.id) }}" class="btn btn-sm btn-outline-warning">
+    <i class="bi bi-pencil"></i>
+  </a>
+  <a href="{{ url_for('excluir_agendamento', agendamento_id=ag.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Deseja realmente excluir este agendamento?');">
+    <i class="bi bi-trash"></i>
+  </a>
+</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" class="text-center text-muted">Nenhum agendamento encontrado.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</body>
+</html>

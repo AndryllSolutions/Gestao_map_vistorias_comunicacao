@@ -8,42 +8,89 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    .chart-container {
-      background-color: white;
+    body {
+      background-color: #f4f6f9;
+    }
+
+    .card-dashboard {
+      background: white;
+      border-radius: 16px;
       padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
-      margin-bottom: 20px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+      transition: 0.3s ease;
+    }
+
+    .card-dashboard:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    }
+
+    .chart-title {
+      font-weight: 600;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chart-title i {
+      font-size: 1.2rem;
+      color: #0d6efd;
+    }
+
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    @media (max-width: 576px) {
+      .dashboard-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+      }
     }
   </style>
 </head>
-<body class="bg-light p-3 p-md-4">
+<body class="p-3 p-md-4">
 
-  <header class="d-flex justify-content-between align-items-center mb-4">
-    <h3><i class="bi bi-bar-chart-line-fill"></i> Dashboard Power BI</h3>
-    <a href="/dashboard" class="btn btn-secondary btn-sm"><i class="bi bi-arrow-left"></i> Voltar</a>
+  <header class="dashboard-header">
+    <h3><i class="bi bi-bar-chart-line-fill text-primary"></i> Dashboard Analítico</h3>
+    <a href="/dashboard" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Voltar ao Painel
+    </a>
   </header>
 
   <div class="container-fluid">
     <div class="row g-4">
-      <div class="col-md-6 chart-container">
-        <h5>Total de Comunicações</h5>
-        <canvas id="graficoTotal"></canvas>
+      <div class="col-md-6">
+        <div class="card-dashboard">
+          <div class="chart-title"><i class="bi bi-bar-chart"></i> Total de Comunicações</div>
+          <canvas id="graficoTotal"></canvas>
+        </div>
       </div>
 
-      <div class="col-md-6 chart-container">
-        <h5>Comunicações por Endereço</h5>
-        <canvas id="graficoEnderecos"></canvas>
+      <div class="col-md-6">
+        <div class="card-dashboard">
+          <div class="chart-title"><i class="bi bi-geo-alt-fill"></i> Comunicações por Endereço</div>
+          <canvas id="graficoEnderecos"></canvas>
+        </div>
       </div>
 
-      <div class="col-md-6 chart-container">
-        <h5>Tipos de Imóveis</h5>
-        <canvas id="graficoTipos"></canvas>
+      <div class="col-md-6">
+        <div class="card-dashboard">
+          <div class="chart-title"><i class="bi bi-building"></i> Tipos de Imóveis</div>
+          <canvas id="graficoTipos"></canvas>
+        </div>
       </div>
 
-      <div class="col-md-6 chart-container">
-        <h5>Tipos de Comunicado</h5>
-        <canvas id="graficoComunicado"></canvas>
+      <div class="col-md-6">
+        <div class="card-dashboard">
+          <div class="chart-title"><i class="bi bi-chat-dots"></i> Tipos de Comunicado</div>
+          <canvas id="graficoComunicado"></canvas>
+        </div>
       </div>
     </div>
   </div>
@@ -52,54 +99,40 @@
     fetch("/api/comunicacoes/dados")
       .then(res => res.json())
       .then(dados => {
-        // Gráfico de total
         new Chart(document.getElementById("graficoTotal"), {
           type: "bar",
           data: {
             labels: ["Total"],
-            datasets: [{
-              label: "Comunicações",
-              data: [dados.total],
-              backgroundColor: "#0d6efd"
-            }]
-          }
+            datasets: [{ label: "Comunicações", data: [dados.total], backgroundColor: "#0d6efd" }]
+          },
+          options: { responsive: true }
         });
 
-        // Gráfico por endereço
         new Chart(document.getElementById("graficoEnderecos"), {
           type: "bar",
           data: {
             labels: Object.keys(dados.por_endereco),
-            datasets: [{
-              label: "Qtd",
-              data: Object.values(dados.por_endereco),
-              backgroundColor: "#198754"
-            }]
-          }
+            datasets: [{ label: "Qtd", data: Object.values(dados.por_endereco), backgroundColor: "#20c997" }]
+          },
+          options: { responsive: true }
         });
 
-        // Gráfico por tipo_imovel
         new Chart(document.getElementById("graficoTipos"), {
           type: "pie",
           data: {
             labels: Object.keys(dados.por_tipo_imovel),
-            datasets: [{
-              data: Object.values(dados.por_tipo_imovel),
-              backgroundColor: ["#0d6efd", "#dc3545", "#ffc107", "#20c997"]
-            }]
-          }
+            datasets: [{ data: Object.values(dados.por_tipo_imovel), backgroundColor: ["#0d6efd", "#dc3545", "#ffc107", "#20c997"] }]
+          },
+          options: { responsive: true }
         });
 
-        // Gráfico por comunicado
         new Chart(document.getElementById("graficoComunicado"), {
           type: "doughnut",
           data: {
             labels: Object.keys(dados.por_comunicado),
-            datasets: [{
-              data: Object.values(dados.por_comunicado),
-              backgroundColor: ["#6610f2", "#fd7e14", "#6f42c1", "#198754"]
-            }]
-          }
+            datasets: [{ data: Object.values(dados.por_comunicado), backgroundColor: ["#6610f2", "#fd7e14", "#6f42c1", "#198754"] }]
+          },
+          options: { responsive: true }
         });
       });
   </script>

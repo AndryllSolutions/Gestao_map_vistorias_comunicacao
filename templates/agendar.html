@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Agendar Vistoria</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-light p-3">
+    <div class="container bg-white p-4 rounded shadow">
+      <h3 class="mb-4">
+        <i class="bi bi-calendar-plus"></i> Agendamento de Vistoria
+      </h3>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+      <form method="POST" action="/agendar">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label>Nome do Morador</label>
+            <input
+              type="text"
+              name="nome_morador"
+              class="form-control"
+              required
+            />
+          </div>
+          <div class="col-md-6 mb-3">
+            <label>Celular</label>
+            <input type="tel" name="celular" class="form-control" required />
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label>Endereço</label>
+            <input type="text" name="endereco" class="form-control" required />
+          </div>
+          <div class="col-md-3 mb-3">
+            <label>Bairro</label>
+            <input type="text" name="bairro" class="form-control" required />
+          </div>
+          <div class="col-md-3 mb-3">
+            <label>Cidade</label>
+            <input type="text" name="cidade" class="form-control" required />
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label>Data da Vistoria</label>
+            <input
+              type="date"
+              name="data_agendada"
+              class="form-control"
+              required
+            />
+          </div>
+          <div class="col-md-6 mb-3">
+            <label>Hora da Vistoria</label>
+            <input
+              type="time"
+              name="hora_agendada"
+              class="form-control"
+              required
+            />
+          </div>
+
+          <div class="col-12 mb-3">
+            <label>Observações</label>
+            <textarea
+              name="observacoes"
+              class="form-control"
+              rows="3"
+              placeholder="Ex: Morador só pode pela manhã..."
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="d-grid d-md-flex justify-content-between">
+          <a href="/dashboard" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Voltar
+          </a>
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-save"></i> Confirmar Agendamento
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

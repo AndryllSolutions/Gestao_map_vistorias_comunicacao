@@ -10,13 +10,31 @@
     body {
       background-color: #f8f9fa;
     }
-    .form-section {
-      background-color: white;
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.05);
+
+    .square-button {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-size: 0.9rem;
+      text-align: center;
+      padding: 10px;
+      border-radius: 12px;
+      transition: all 0.2s ease-in-out;
     }
-    .btn-mobile-full {
+
+    .square-button i {
+      font-size: 1.6rem;
+      margin-bottom: 8px;
+    }
+
+    .square-button:hover {
+      transform: scale(1.03);
+    }
+
+    .admin-dropdown .dropdown-menu {
       width: 100%;
     }
   </style>
@@ -34,64 +52,62 @@
   </header>
 
   <!-- Título -->
-  <h2 class="mb-3"><i class="bi bi-house-door-fill"></i> Sistema de Cadastro de Imóveis</h2>
+  <h2 class="mb-4"><i class="bi bi-house-door-fill"></i> Sistema de Cadastro de Imóveis</h2>
 
-  <!-- Botão para Formulário de Comunicação -->
-<!-- Botões de Comunicação -->
-<div class="row g-3 mb-4">
-  <div class="col-md-6">
-    <a href="/comunicacoes" class="btn btn-outline-primary w-100">
-      <i class="bi bi-folder2-open"></i> Visualizar Registros de Comunicação
-    </a>
+  <!-- Botões principais -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <a href="/comunicacoes" class="btn btn-outline-primary square-button">
+        <i class="bi bi-folder2-open"></i>
+        Comunicação
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="/comunicacao/passo1" class="btn btn-success square-button">
+        <i class="bi bi-ui-checks-grid"></i>
+        Nova Comunicação
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="/vistorias" class="btn btn-outline-info square-button">
+        <i class="bi bi-clipboard-data"></i>
+        Vistorias
+      </a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="/agendamentos" class="btn btn-outline-warning square-button">
+        <i class="bi bi-calendar-check"></i>
+        Agendamentos
+      </a>
+    </div>
   </div>
-  <div class="col-md-6">
-    <a href="/comunicacao/passo1" class="btn btn-success w-100">
-      <i class="bi bi-ui-checks-grid"></i> Nova Comunicação de Obra
-    </a>
-  </div>
-</div>
-<div class="row g-3 mb-4">
-  <div class="col-md-12">
-    <a href="/vistorias" class="btn btn-outline-info w-100">
-      <i class="bi bi-clipboard-data"></i> Visualizar Registros de Vistorias
-    </a>
-  </div>
-</div>
-<!-- Botão de Gerenciar Usuários (apenas admin) -->
+
+  <!-- Botões de administração (visíveis apenas para admin) -->
+ <!-- Botões de administração (visíveis apenas para admin) -->
 {% if cargo == 'admin' %}
-<div class="dropdown mb-4">
-  <button class="btn btn-secondary dropdown-toggle w-100" type="button" id="adminDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-    <i class="bi bi-shield-lock"></i> Administração
-  </button>
-  <ul class="dropdown-menu w-100" aria-labelledby="adminDropdown">
-    <li><a class="dropdown-item" href="/gerenciar-usuarios"><i class="bi bi-people-fill"></i> Gerenciar Usuários</a></li>
-    <li><a class="dropdown-item" href="/dashboard_power_bi"><i class="bi bi-bar-chart-fill"></i> Dashboard Power BI</a></li>
-  </ul>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <a href="/gerenciar-usuarios" class="btn btn-outline-dark square-button">
+      <i class="bi bi-people-fill"></i>
+      Gerenciar Usuários
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="/dashboard_power_bi" class="btn btn-outline-secondary square-button">
+      <i class="bi bi-bar-chart-fill"></i>
+      Dashboard Power BI
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="/historico" class="btn btn-outline-secondary square-button">
+      <i class="bi bi-clock-history"></i>
+      Histórico de Ações
+    </a>
+  </div>
 </div>
 {% endif %}
 
 
-  <!-- Alerta -->
-  <div id="alerta" class="alert d-none" role="alert"></div>
-
-
-
-  <!-- Tabela -->
-  <!-- <div class="table-responsive">
-    <table class="table table-striped" id="tabela-imoveis">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Endereço</th>
-          <th>Descrição</th>
-          <th>Preço (R$)</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
- --->
   <!-- Rodapé -->
   <footer class="text-center mt-5 text-muted small">
     &copy; {{ ano }} - Sistema de Cadastro de Imóveis | Engenharia Civil
@@ -105,7 +121,7 @@
   </div>
 
   <!-- Scripts -->
-  <script src="/static/js/dashboard.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     document.getElementById('usuario-nome').textContent = "{{ usuario }}";
 
@@ -119,6 +135,4 @@
   </script>
 
 </body>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 </html>

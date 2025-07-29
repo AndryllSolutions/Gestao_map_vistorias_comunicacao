@@ -1,0 +1,37 @@
+[
+  {
+    "email": "admin@obra.com",
+    "password": "admin123",
+    "cargo": "admin"
+  },
+  {
+    "email": "anamariamagalhesfreitas@gmail.com",
+    "password": "@DEDEra45ra45",
+    "cargo": "usuario"
+  },
+  {
+    "email": "lucas.coutinho@enotec.com.br",
+    "password": "D!861729040254uh",
+    "cargo": "admin"
+  },
+  {
+    "email": "thoma.fonseca@enotec.com.br",
+    "password": "Waf46025",
+    "cargo": "admin"
+  },
+  {
+    "email": "lucasnacoutinho@gmail.com",
+    "password": "Lu21cas03",
+    "cargo": "admin"
+  },
+  {
+    "email": "thomaz.martins.fonseca2@gmail.com",
+    "password": "618259th",
+    "cargo": "admin"
+  },
+  {
+    "email": "olimpiokaik85@gmail.com",
+    "password": "13152708K@ik",
+    "cargo": "admin"
+  }
+]

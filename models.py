@@ -54,3 +54,25 @@ class VistoriaImovel(db.Model):
     soleira = db.Column(db.String(50))
     calcada = db.Column(db.String(100))
     observacoes = db.Column(db.Text)
+
+class AgendamentoVistoria(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome_morador = db.Column(db.String(100), nullable=False)
+    celular = db.Column(db.String(20), nullable=False)
+    endereco = db.Column(db.String(255), nullable=False)
+    bairro = db.Column(db.String(100), nullable=False)
+    cidade = db.Column(db.String(100), nullable=False)
+    data_agendada = db.Column(db.Date, nullable=False)
+    hora_agendada = db.Column(db.Time, nullable=False)
+    observacoes = db.Column(db.Text)
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+
+class HistoricoAcao(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    tipo_acao = db.Column(db.String(20))  # "criação", "edição", "exclusão"
+    entidade = db.Column(db.String(50))   # Ex: "Vistoria", "Agendamento"
+    entidade_id = db.Column(db.Integer)   # ID do registro afetado
+    data_hora = db.Column(db.DateTime, default=datetime.utcnow)
+    observacao = db.Column(db.Text)  # Texto opcional sobre o que foi feito
+    usuario = db.relationship("User", backref="historicos")

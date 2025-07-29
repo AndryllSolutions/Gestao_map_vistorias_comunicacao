@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template, redirect, session,url_for,send_file,flash
 from flask_cors import CORS
-from models import db, User, Imovel,ComunicacaoObra,VistoriaImovel,AgendamentoVistoria,HistoricoAcao
+from models import db, User, Imovel,ComunicacaoObra,VistoriaImovel,AgendamentoVistoria
 import os
 from datetime import datetime
 from io import BytesIO
@@ -9,17 +9,12 @@ from reportlab.pdfgen import canvas
 from flask_migrate import Migrate
 from textwrap import wrap
 from sqlalchemy import and_
-import pandas as pd
-from fpdf import FPDF
-from flask_migrate import Migrate
-from datetime import timedelta
+
 
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.jinja_env.globals['now'] = datetime.now
 app.secret_key = "Aninha_pitukinha"  # 🔒 use algo mais seguro em produção!
-app.permanent_session_lifetime = timedelta(minutes=30)
-
 CORS(app)
 migrate = Migrate(app, db)
 
@@ -69,20 +64,7 @@ def cadastrar():
     novo_usuario = User(email=email, password=senha)
     db.session.add(novo_usuario)
     db.session.commit()
-
-    # Registrar histórico se for admin criando
-    if "user_id" in session:
-        registrar_acao(
-            usuario_id=session["user_id"],
-            tipo_acao="criação",
-            entidade="Usuário",
-            entidade_id=novo_usuario.id,
-            observacao=f"Usuário criado: {novo_usuario.email}"
-        )
-
     return jsonify({"mensagem": "Usuário cadastrado com sucesso"}), 201
-
-
 
 @app.route("/cadastro", methods=["GET"])
 def cadastro_form():
@@ -183,16 +165,12 @@ def formulario_comunicacao():
 
         db.session.add(novo)
         db.session.commit()
-        
         return redirect(url_for("formulario_comunicacao"))
 
     return render_template("comunicacao_form.html")
 
 @app.route("/comunicacoes", methods=["GET"])
 def listar_comunicacoes():
-    if "user_id" not in session:
-        return redirect(url_for("login"))
-
     registros = ComunicacaoObra.query.order_by(ComunicacaoObra.id.desc()).all()
     return render_template("comunicacoes_dashboard.html", registros=registros)
 
@@ -223,6 +201,8 @@ def comunicacao_passo3():
         assinatura = request.form.get("assinatura")
         tipos = request.form.getlist("tipo_imovel")
 
+        from models import ComunicacaoObra
+
         novo = ComunicacaoObra(
             nome=session.get("nome"),
             cpf=session.get("cpf"),
@@ -235,80 +215,11 @@ def comunicacao_passo3():
         )
         db.session.add(novo)
         db.session.commit()
+        session.clear()  # limpa os dados após salvar
 
-        # Registra no histórico se admin
-        if "user_id" in session and session.get("cargo") == "admin":
-            registrar_acao(
-                usuario_id=session["user_id"],
-                tipo_acao="criação",
-                entidade="Comunicação",
-                entidade_id=novo.id,
-                observacao=f"Comunicação registrada para {novo.nome}, endereço: {novo.endereco}"
-            )
-
-        # Limpa apenas os dados temporários
-        for chave in ["nome", "cpf", "endereco", "telefone", "comunicado"]:
-            session.pop(chave, None)
-
-        if "user_id" in session and session.get("cargo") == "admin":
-            return redirect(url_for("listar_comunicacoes"))
-        else:
-            return render_template("comunicacao_sucesso.html")
+        return redirect(url_for("listar_comunicacoes"))  # exibe lista final
 
     return render_template("etapa3.html")
-
-
-@app.route("/comunicacao/editar/<int:id>", methods=["GET", "POST"])
-def editar_comunicacao(id):
-    if session.get("cargo") != "admin":
-        return "Acesso negado", 403
-
-    comunicacao = ComunicacaoObra.query.get_or_404(id)
-
-    if request.method == "POST":
-        comunicacao.nome = request.form["nome"]
-        comunicacao.cpf = request.form["cpf"]
-        comunicacao.endereco = request.form["endereco"]
-        comunicacao.telefone = request.form["telefone"]
-        comunicacao.comunicado = request.form["comunicado"]
-        comunicacao.economia = request.form["economia"]
-        comunicacao.assinatura = request.form["assinatura"]
-        comunicacao.tipo_imovel = ",".join(request.form.getlist("tipo_imovel"))
-        
-        db.session.commit()
-
-        registrar_acao(
-            usuario_id=session["user_id"],
-            tipo_acao="edição",
-            entidade="Comunicação",
-            entidade_id=comunicacao.id,
-            observacao=f"Edição do registro de {comunicacao.nome}"
-        )
-
-        flash("✏️ Registro atualizado com sucesso!", "success")
-        return redirect(url_for("listar_comunicacoes"))
-
-    return render_template("editar_comunicacao.html", comunicacao=comunicacao)
-
-@app.route("/comunicacao/excluir/<int:id>", methods=["POST"])
-def excluir_comunicacao(id):
-    if session.get("cargo") != "admin":
-        return "Acesso negado", 403
-
-    comunicacao = ComunicacaoObra.query.get_or_404(id)
-    db.session.delete(comunicacao)
-    db.session.commit()
-
-    registrar_acao(
-        usuario_id=session["user_id"],
-        tipo_acao="exclusão",
-        entidade="Comunicação",
-        entidade_id=id,
-        observacao=f"Registro excluído: {comunicacao.nome}"
-    )
-
-    flash("🗑️ Registro excluído com sucesso!", "danger")
-    return redirect(url_for("listar_comunicacoes"))
 
 
 @app.route("/gerenciar-usuarios", methods=["GET", "POST"])
@@ -344,14 +255,6 @@ def atualizar_cargo(user_id):
     if usuario:
         usuario.cargo = novo_cargo
         db.session.commit()
-
-    registrar_acao(
-    usuario_id=user_logado.id,
-    tipo_acao="edição",
-    entidade="Usuário",
-    entidade_id=usuario.id,
-    observacao=f"Cargo alterado para '{novo_cargo}' do usuário {usuario.email}"
-)
     return redirect(url_for('gerenciar_usuarios'))
 
 @app.route('/excluir_usuario/<int:user_id>', methods=['POST'])
@@ -367,14 +270,6 @@ def excluir_usuario(user_id):
     if usuario and usuario.id != user_logado.id:  # Impede excluir a si mesmo
         db.session.delete(usuario)
         db.session.commit()
-
-    registrar_acao(
-    usuario_id=user_logado.id,
-    tipo_acao="exclusão",
-    entidade="Usuário",
-    entidade_id=usuario.id,
-    observacao=f"Usuário excluído: {usuario.email}"
-)
 
     return redirect(url_for('gerenciar_usuarios'))
 
@@ -460,32 +355,16 @@ def vistoria():
         )
         db.session.add(nova)
         db.session.commit()
-
-        # Registrar histórico da ação
-        if "user_id" in session:
-            registrar_acao(
-                usuario_id=session["user_id"],
-                tipo_acao="criação",
-                entidade="Vistoria",
-                entidade_id=nova.id,
-                observacao=f"Vistoria criada no endereço {nova.rua}, {nova.bairro}"
-            )
-
-        return redirect(url_for("vistoria"))
+        return redirect(url_for("vistoria"))  # redireciona após salvar
 
     return render_template("vistoria_form.html")
-
 @app.route("/vistorias")
 def listar_vistorias():
     if "user_id" not in session:
         return redirect(url_for("login"))
-    
-    usuario = User.query.get(session["user_id"])
-    vistorias = VistoriaImovel.query.order_by(VistoriaImovel.data_1.desc()).all()
-    
-    return render_template("vistorias_dashboard.html", vistorias=vistorias, cargo=usuario.cargo)
 
-
+    vistorias = VistoriaImovel.query.order_by(VistoriaImovel.id.desc()).all()
+    return render_template("vistorias_dashboard.html", vistorias=vistorias)
 
 
 
@@ -627,16 +506,6 @@ def agendar_vistoria():
             )
             db.session.add(novo_agendamento)
             db.session.commit()
-
-            registrar_acao(
-                usuario_id=session["user_id"],
-                tipo_acao="criação",
-                entidade="Agendamento",
-                entidade_id=novo_agendamento.id,
-                observacao=f"Agendamento criado: {novo_agendamento.nome_morador}, {novo_agendamento.endereco}"
-            )
-
-
             flash("✅ Agendamento realizado com sucesso!", "success")
             return redirect(url_for("agendar_vistoria"))
 
@@ -662,187 +531,18 @@ def editar_agendamento(agendamento_id):
         agendamento.observacoes = request.form["observacoes"]
 
         db.session.commit()
-
-        if "user_id" in session:
-            registrar_acao(
-                usuario_id=session["user_id"],
-                tipo_acao="edição",
-                entidade="Agendamento",
-                entidade_id=agendamento.id,
-                observacao=f"Edição agendamento de {agendamento.nome_morador} em {agendamento.data_agendada}"
-            )
-
         flash("✏️ Agendamento atualizado com sucesso!", "success")
         return redirect(url_for("listar_agendamentos"))
 
     return render_template("editar_agendamento.html", agendamento=agendamento)
-
 @app.route("/agendamento/excluir/<int:agendamento_id>")
 def excluir_agendamento(agendamento_id):
     agendamento = AgendamentoVistoria.query.get_or_404(agendamento_id)
-
-    if "user_id" in session:
-        registrar_acao(
-            usuario_id=session["user_id"],
-            tipo_acao="exclusão",
-            entidade="Agendamento",
-            entidade_id=agendamento.id,
-            observacao=f"Agendamento excluído: {agendamento.nome_morador}, {agendamento.endereco}"
-        )
-
     db.session.delete(agendamento)
     db.session.commit()
     flash("🗑️ Agendamento excluído com sucesso!", "danger")
     return redirect(url_for("listar_agendamentos"))
 
-
-
-
-@app.route("/exportar/vistorias/excel")
-def exportar_vistorias_excel():
-    vistorias = Vistoria.query.all()
-    dados = [{
-        "ID": v.id,
-        "Município": v.municipio,
-        "Bairro": v.bairro,
-        "Rua": v.rua,
-        "Data": v.data_1.strftime("%d/%m/%Y"),
-        "Hora": v.hora_1,
-        "Tipo": v.tipo_imovel,
-        "Observações": v.observacoes
-    } for v in vistorias]
-    df = pd.DataFrame(dados)
-    output = BytesIO()
-    df.to_excel(output, index=False)
-    output.seek(0)
-    return send_file(output, download_name="vistorias.xlsx", as_attachment=True)
-
-@app.route("/exportar/vistorias/pdf")
-def exportar_vistorias_pdf():
-    vistorias = Vistoria.query.all()
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="Relatório de Vistorias", ln=True, align="C")
-    for v in vistorias:
-        pdf.cell(200, 10, txt=f"ID {v.id} - {v.municipio}, {v.bairro}, {v.rua} - {v.data_1.strftime('%d/%m/%Y')}", ln=True)
-    output = BytesIO()
-    pdf.output(output)
-    output.seek(0)
-    return send_file(output, download_name="vistorias.pdf", as_attachment=True)
-
-@app.route("/vistoria/editar/<int:id>", methods=["GET", "POST"])
-def editar_vistoria(id):
-    vistoria = VistoriaImovel.query.get_or_404(id)
-
-    if request.method == "POST":
-        vistoria.municipio = request.form["municipio"]
-        vistoria.bairro = request.form["bairro"]
-        vistoria.rua = request.form["rua"]
-        vistoria.data_1 = datetime.strptime(request.form["data_1"], "%Y-%m-%d").date()
-        vistoria.hora_1 = request.form["hora_1"]
-        vistoria.tipo_imovel = request.form["tipo_imovel"]
-        vistoria.observacoes = request.form["observacoes"]
-
-        db.session.commit()
-
-        # Registrar histórico
-        if "user_id" in session:
-            registrar_acao(
-                usuario_id=session["user_id"],
-                tipo_acao="edição",
-                entidade="Vistoria",
-                entidade_id=vistoria.id,
-                observacao=f"Vistoria editada no endereço {vistoria.rua}, {vistoria.bairro}"
-            )
-
-        flash("✅ Vistoria atualizada com sucesso!", "success")
-        return redirect(url_for("listar_vistorias"))
-
-    return render_template("editar_vistoria.html", vistoria=vistoria)
-
-
-@app.route("/historico")
-def historico():
-    if session.get("cargo") != "admin":
-        return redirect(url_for("dashboard"))
-
-    tipo_acao = request.args.get("tipo")
-    data_inicio = request.args.get("inicio")
-    data_fim = request.args.get("fim")
-
-    query = HistoricoAcao.query
-
-    if tipo_acao:
-        query = query.filter_by(tipo_acao=tipo_acao)
-
-    if data_inicio:
-        inicio = datetime.strptime(data_inicio, "%Y-%m-%d")
-        query = query.filter(HistoricoAcao.data_hora >= inicio)
-
-    if data_fim:
-        fim = datetime.strptime(data_fim, "%Y-%m-%d")
-        fim = fim.replace(hour=23, minute=59, second=59)
-        query = query.filter(HistoricoAcao.data_hora <= fim)
-
-    acoes = query.order_by(HistoricoAcao.data_hora.desc()).all()
-    return render_template("historico.html", acoes=acoes)
-
-
-
-def registrar_acao(usuario_id, tipo_acao, entidade, entidade_id, observacao=""):
-    from models import HistoricoAcao, db
-    acao = HistoricoAcao(
-        usuario_id=usuario_id,
-        tipo_acao=tipo_acao,
-        entidade=entidade,
-        entidade_id=entidade_id,
-        observacao=observacao
-    )
-    db.session.add(acao)
-    db.session.commit()
-
-@app.route("/historico/exportar/pdf")
-def exportar_historico_pdf():
-    if session.get("cargo") != "admin":
-        return redirect(url_for("dashboard"))
-
-    acoes = HistoricoAcao.query.order_by(HistoricoAcao.data_hora.desc()).all()
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, "Histórico de Ações", ln=True, align="C")
-
-    for a in acoes:
-        linha = f"{a.data_hora.strftime('%d/%m/%Y %H:%M')} - {a.usuario.email} - {a.tipo_acao} - {a.entidade} #{a.entidade_id}"
-        pdf.cell(200, 10, txt=linha, ln=True)
-
-    output = BytesIO()
-    pdf.output(output)
-    output.seek(0)
-    return send_file(output, download_name="historico_acoes.pdf", as_attachment=True)
-
-@app.route("/historico/exportar/excel")
-def exportar_historico_excel():
-    if session.get("cargo") != "admin":
-        return redirect(url_for("dashboard"))
-
-    acoes = HistoricoAcao.query.order_by(HistoricoAcao.data_hora.desc()).all()
-    dados = [{
-        "ID": a.id,
-        "Usuário": a.usuario.email,
-        "Ação": a.tipo_acao,
-        "Entidade": a.entidade,
-        "ID Alvo": a.entidade_id,
-        "Observação": a.observacao,
-        "Data e Hora": a.data_hora.strftime('%d/%m/%Y %H:%M:%S')
-    } for a in acoes]
-
-    df = pd.DataFrame(dados)
-    output = BytesIO()
-    df.to_excel(output, index=False)
-    output.seek(0)
-    return send_file(output, download_name="historico_acoes.xlsx", as_attachment=True)
 
 if __name__ == "__main__":
     with app.app_context():
