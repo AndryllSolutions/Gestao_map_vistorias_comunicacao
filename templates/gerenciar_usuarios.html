@@ -16,7 +16,8 @@
             <th>ID</th>
             <th>Email</th>
             <th>Cargo Atual</th>
-            <th>Alterar Cargo</th>
+            <th>Obra Associada</th>
+            <th>Alterar Cargo / Obra</th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -26,14 +27,25 @@
             <td>{{ u.id }}</td>
             <td>{{ u.email }}</td>
             <td>{{ u.cargo }}</td>
+            <td>{{ u.obra.nome if u.obra else '---' }}</td>
             <td>
-              <form method="POST" action="{{ url_for('atualizar_cargo', user_id=u.id) }}" class="d-flex">
+              <form method="POST" action="{{ url_for('gerenciar_usuarios') }}" class="d-flex flex-wrap gap-2">
+                <input type="hidden" name="usuario_id" value="{{ u.id }}">
+
                 <select name="novo_cargo" class="form-select me-2">
                   <option value="usuario" {% if u.cargo == 'usuario' %}selected{% endif %}>Usuário</option>
                   <option value="vistoriador" {% if u.cargo == 'vistoriador' %}selected{% endif %}>Vistoriador</option>
                   <option value="comunicador" {% if u.cargo == 'comunicador' %}selected{% endif %}>Comunicador</option>
                   <option value="admin" {% if u.cargo == 'admin' %}selected{% endif %}>Administrador</option>
                 </select>
+
+                <select name="obra_id" class="form-select me-2">
+                  <option value="">-- Sem obra --</option>
+                  {% for obra in obras %}
+                    <option value="{{ obra.id }}" {% if u.obra_id == obra.id %}selected{% endif %}>{{ obra.nome }}</option>
+                  {% endfor %}
+                </select>
+
                 <button type="submit" class="btn btn-primary">Salvar</button>
               </form>
             </td>

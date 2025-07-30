@@ -26,6 +26,13 @@
 {% endwith %}
       <form method="POST" action="/agendar">
         <div class="row">
+          <select name="obra_id" class="form-control" required>
+  <option value="">Selecione a obra</option>
+  {% for obra in obras %}
+    <option value="{{ obra.id }}">{{ obra.nome }}</option>
+  {% endfor %}
+</select>
+
           <div class="col-md-6 mb-3">
             <label>Nome do Morador</label>
             <input

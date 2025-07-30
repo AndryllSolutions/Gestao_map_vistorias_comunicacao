@@ -1,0 +1,330 @@
+{
+  "usuarios": [
+    {
+      "id": 1,
+      "email": "admin@obra.com",
+      "password": "admin123",
+      "cargo": "admin"
+    },
+    {
+      "id": 2,
+      "email": "anamariamagalhesfreitas@gmail.com",
+      "password": "@DEDEra45ra45",
+      "cargo": "usuario"
+    },
+    {
+      "id": 3,
+      "email": "lucas.coutinho@enotec.com.br",
+      "password": "D!861729040254uh",
+      "cargo": "admin"
+    },
+    {
+      "id": 4,
+      "email": "thoma.fonseca@enotec.com.br",
+      "password": "Waf46025",
+      "cargo": "admin"
+    },
+    {
+      "id": 5,
+      "email": "lucasnacoutinho@gmail.com",
+      "password": "Lu21cas03",
+      "cargo": "admin"
+    },
+    {
+      "id": 6,
+      "email": "thomaz.martins.fonseca2@gmail.com",
+      "password": "618259th",
+      "cargo": "admin"
+    },
+    {
+      "id": 7,
+      "email": "olimpiokaik85@gmail.com",
+      "password": "13152708K@ik",
+      "cargo": "admin"
+    },
+    {
+      "id": 8,
+      "email": "rafael_mz@hotmail.com",
+      "password": "123@study",
+      "cargo": "usuario"
+    }
+  ],
+  "imoveis": [],
+  "comunicacoes": [
+    {
+      "id": 1,
+      "nome": "André Kaique",
+      "cpf": "483.736.638-43",
+      "endereco": "Rua Padre Jacinto Nunes",
+      "telefone": "11968029600",
+      "comunicado": "Presencial",
+      "economia": "34",
+      "assinatura": "434",
+      "tipo_imovel": "Casa,Comércio",
+      "data_envio": "2025-07-29 15:22:38"
+    },
+    {
+      "id": 2,
+      "nome": "André Kaique",
+      "cpf": "483.736.638-43",
+      "endereco": "Rua Padre Jacinto Nunes",
+      "telefone": "11968029600",
+      "comunicado": "Panfleto",
+      "economia": "34",
+      "assinatura": "434",
+      "tipo_imovel": "Casa,Terreno/Construção",
+      "data_envio": "2025-07-29 15:51:34"
+    },
+    {
+      "id": 3,
+      "nome": "André Kaique",
+      "cpf": "483.736.638-43",
+      "endereco": "Rua Padre Jacinto Nunes",
+      "telefone": "11968029600",
+      "comunicado": "Presencial",
+      "economia": "34",
+      "assinatura": "434",
+      "tipo_imovel": "Comércio",
+      "data_envio": "2025-07-29 15:56:44"
+    },
+    {
+      "id": 4,
+      "nome": "André Kaique",
+      "cpf": "483.736.638-43",
+      "endereco": "Rua Padre Jacinto Nunes",
+      "telefone": "11968029600",
+      "comunicado": "Panfleto",
+      "economia": "34",
+      "assinatura": "434",
+      "tipo_imovel": "Residencial",
+      "data_envio": "2025-07-29 16:01:20"
+    },
+    {
+      "id": 5,
+      "nome": "ana maria",
+      "cpf": "343232324234",
+      "endereco": "2343243232324",
+      "telefone": "324324323234",
+      "comunicado": "Presencial",
+      "economia": "234324324",
+      "assinatura": "23432432432",
+      "tipo_imovel": "Casa",
+      "data_envio": "2025-07-29 16:09:37"
+    },
+    {
+      "id": 6,
+      "nome": "ana maria ",
+      "cpf": "23432432324",
+      "endereco": "2343243232",
+      "telefone": "23432432432",
+      "comunicado": "Panfleto",
+      "economia": "3243232432",
+      "assinatura": "324324432432",
+      "tipo_imovel": "Residencial",
+      "data_envio": "2025-07-29 16:10:52"
+    },
+    {
+      "id": 7,
+      "nome": "ivana magalhaes freitas neto",
+      "cpf": "325324532342",
+      "endereco": "23r432432",
+      "telefone": "2343232443243232324",
+      "comunicado": "Panfleto",
+      "economia": "21213333",
+      "assinatura": "122121",
+      "tipo_imovel": "",
+      "data_envio": "2025-07-29 16:14:12"
+    }
+  ],
+  "vistorias": [
+    {
+      "id": 1,
+      "data_1": "2025-07-29",
+      "hora_1": "",
+      "data_2": "",
+      "hora_2": "",
+      "data_3": "",
+      "hora_3": "",
+      "nome_responsavel": "André Kaique",
+      "cpf_responsavel": "48373663843",
+      "tipo_vinculo": "proprietario",
+      "municipio": "SAO PAULO",
+      "bairro": "Cangaiba - PENHA",
+      "rua": "PADRE JACINTO NUNES",
+      "numero": "22",
+      "complemento": "",
+      "celular": "",
+      "tipo_imovel": "residencial",
+      "soleira": "positiva",
+      "calcada": "cimento",
+      "observacoes": "teste "
+    },
+    {
+      "id": 2,
+      "data_1": "2025-07-22",
+      "hora_1": "13:14",
+      "data_2": "",
+      "hora_2": "",
+      "data_3": "",
+      "hora_3": "",
+      "nome_responsavel": "André Kaique",
+      "cpf_responsavel": "48373663843",
+      "tipo_vinculo": "proprietario",
+      "municipio": "SAO PAULO",
+      "bairro": "Cangaiba - PENHA",
+      "rua": "PADRE JACINTO NUNES",
+      "numero": "22",
+      "complemento": "",
+      "celular": "(11) 9 6802-9600",
+      "tipo_imovel": "residencial",
+      "soleira": "positiva",
+      "calcada": "cimento, revestimento, sem acabamento",
+      "observacoes": "casa longe da influcneica da obra"
+    }
+  ],
+  "agendamentos": [
+    {
+      "id": 1,
+      "nome_morador": "André Kaique",
+      "celular": "(11) 9 6802-9600",
+      "endereco": "Rua Padre Jacinto Nunes",
+      "bairro": "Cangaiba - PENHA",
+      "cidade": "São Paulo",
+      "data_agendada": "2025-07-29 00:00:00",
+      "hora_agendada": "12:21:00",
+      "observacoes": "teste",
+      "criado_em": "2025-07-29 15:21:57"
+    },
+    {
+      "id": 2,
+      "nome_morador": "ana maria magalhaes freitas ",
+      "celular": "11 96405-9417",
+      "endereco": "sergio tomas 235",
+      "bairro": "bom retiro",
+      "cidade": "sao paulo",
+      "data_agendada": "2025-07-29 00:00:00",
+      "hora_agendada": "12:44:00",
+      "observacoes": "teste",
+      "criado_em": "2025-07-29 15:44:49"
+    }
+  ],
+  "historico": [
+    {
+      "id": 1,
+      "usuario_id": 1,
+      "tipo_acao": "criação",
+      "entidade": "Vistoria",
+      "entidade_id": 1,
+      "data_hora": "2025-07-29 14:56:52",
+      "observacao": "Vistoria criada no endereço PADRE JACINTO NUNES, Cangaiba - PENHA"
+    },
+    {
+      "id": 2,
+      "usuario_id": 1,
+      "tipo_acao": "criação",
+      "entidade": "Agendamento",
+      "entidade_id": 2,
+      "data_hora": "2025-07-29 15:44:50",
+      "observacao": "Agendamento criado: ana maria magalhaes freitas , sergio tomas 235"
+    },
+    {
+      "id": 3,
+      "usuario_id": 1,
+      "tipo_acao": "criação",
+      "entidade": "Comunicação",
+      "entidade_id": 4,
+      "data_hora": "2025-07-29 16:01:20",
+      "observacao": "Comunicação registrada para André Kaique, endereço: Rua Padre Jacinto Nunes"
+    },
+    {
+      "id": 4,
+      "usuario_id": 1,
+      "tipo_acao": "edição",
+      "entidade": "Comunicação",
+      "entidade_id": 4,
+      "data_hora": "2025-07-29 16:08:05",
+      "observacao": "Edição do registro de André Kaique"
+    },
+    {
+      "id": 5,
+      "usuario_id": 1,
+      "tipo_acao": "criação",
+      "entidade": "Comunicação",
+      "entidade_id": 5,
+      "data_hora": "2025-07-29 16:09:37",
+      "observacao": "Comunicação registrada para ana maria, endereço: 2343243232324"
+    },
+    {
+      "id": 6,
+      "usuario_id": 1,
+      "tipo_acao": "criação",
+      "entidade": "Comunicação",
+      "entidade_id": 6,
+      "data_hora": "2025-07-29 16:10:52",
+      "observacao": "Comunicação registrada para ana maria , endereço: 2343243232"
+    },
+    {
+      "id": 7,
+      "usuario_id": 1,
+      "tipo_acao": "edição",
+      "entidade": "Comunicação",
+      "entidade_id": 6,
+      "data_hora": "2025-07-29 16:13:44",
+      "observacao": "Edição do registro de ana maria "
+    },
+    {
+      "id": 8,
+      "usuario_id": 1,
+      "tipo_acao": "criação",
+      "entidade": "Comunicação",
+      "entidade_id": 7,
+      "data_hora": "2025-07-29 16:14:12",
+      "observacao": "Comunicação registrada para ivana magalhaes freitas neto, endereço: 23r432432"
+    },
+    {
+      "id": 9,
+      "usuario_id": 1,
+      "tipo_acao": "criação",
+      "entidade": "Vistoria",
+      "entidade_id": 2,
+      "data_hora": "2025-07-29 16:15:22",
+      "observacao": "Vistoria criada no endereço PADRE JACINTO NUNES, Cangaiba - PENHA"
+    },
+    {
+      "id": 10,
+      "usuario_id": 1,
+      "tipo_acao": "edição",
+      "entidade": "Vistoria",
+      "entidade_id": 2,
+      "data_hora": "2025-07-29 16:15:48",
+      "observacao": "Vistoria editada no endereço PADRE JACINTO NUNES, Cangaiba - PENHA"
+    },
+    {
+      "id": 11,
+      "usuario_id": 1,
+      "tipo_acao": "criação",
+      "entidade": "Agendamento",
+      "entidade_id": 3,
+      "data_hora": "2025-07-29 16:16:17",
+      "observacao": "Agendamento criado: André Kaique, Rua Padre Jacinto Nunes"
+    },
+    {
+      "id": 12,
+      "usuario_id": 1,
+      "tipo_acao": "exclusão",
+      "entidade": "Agendamento",
+      "entidade_id": 3,
+      "data_hora": "2025-07-29 16:55:07",
+      "observacao": "Agendamento excluído: André Kaique, Rua Padre Jacinto Nunes"
+    },
+    {
+      "id": 13,
+      "usuario_id": 1,
+      "tipo_acao": "edição",
+      "entidade": "Comunicação",
+      "entidade_id": 7,
+      "data_hora": "2025-07-29 16:56:27",
+      "observacao": "Edição do registro de ivana magalhaes freitas neto"
+    }
+  ]
+}

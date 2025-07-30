@@ -62,6 +62,9 @@
               <th>CPF</th>
               <th>Economia</th>
               <th>Data</th>
+              {% if session.cargo == 'admin' %}
+              <th>Ações</th>
+              {% endif %}
             </tr>
           </thead>
           <tbody>

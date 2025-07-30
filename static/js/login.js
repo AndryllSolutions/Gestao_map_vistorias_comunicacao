@@ -1,12 +1,13 @@
 function logar() {
-  const email = document.getElementById("email").value;
-  const senha = document.getElementById("senha").value;
+  const email = document.getElementById("email").value.trim();
+  const senha = document.getElementById("senha").value.trim();
 
   fetch("/login", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include",  // ⬅️ ESSENCIAL para sessões funcionarem com ngrok!
     body: JSON.stringify({ email: email, password: senha }),
   })
     .then((res) => res.json())

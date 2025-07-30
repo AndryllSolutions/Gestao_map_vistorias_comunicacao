@@ -1,0 +1,36 @@
+{% extends "obras/base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Nova Obra</h2>
+  <form method="POST" action="{{ url_for('nova_obra') }}">
+    <div class="mb-3">
+      <label class="form-label">Nome da Obra</label>
+      <input type="text" class="form-control" name="nome" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Descrição</label>
+      <textarea class="form-control" name="descricao"></textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Endereço</label>
+      <input type="text" class="form-control" name="endereco">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Responsável</label>
+      <input type="text" class="form-control" name="responsavel">
+    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Data de Início</label>
+        <input type="date" class="form-control" name="data_inicio">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label class="form-label">Data de Fim</label>
+        <input type="date" class="form-control" name="data_fim">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Cadastrar</button>
+    <a href="{{ url_for('obras') }}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

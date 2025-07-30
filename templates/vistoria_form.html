@@ -10,6 +10,15 @@
 
   <div class="container bg-white p-4 rounded shadow">
     <h3 class="mb-4">📋 Vistoria do Imóvel</h3>
+    {% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
+      {{ messages[0] }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+  {% endif %}
+{% endwith %}
+
     <form method="POST" action="/vistoria">
 
       <!-- 1. Tentativas de visita -->
@@ -109,6 +118,21 @@
 <!-- 4. Ciência do Morador -->
 <h5 class="mt-4 mb-3">4. Ciência do Morador</h5>
 <div class="row">
+  {% for obra in obras %}
+  <option value="">Selecione a obra</option>
+  
+    <option value="{{ obra.id }}">{{ obra.nome }}</option>
+  {% endfor %}
+</select>
+<div class="mb-3">
+  <label for="obra_id" class="form-label">Obra Associada</label>
+  <select class="form-select" name="obra_id" id="obra_id">
+    <option value="">-- Nenhuma --</option>
+    {% for obra in obras %}
+      <option value="{{ obra.id }}">{{ obra.nome }}</option>
+    {% endfor %}
+  </select>
+</div>
   <div class="col-md-6 mb-3">
     <label>Nome do Responsável pelas Informações</label>
     <input type="text" name="nome_responsavel" class="form-control" required>
