@@ -62,6 +62,7 @@ class VistoriaImovel(db.Model):
     soleira = db.Column(db.String(50))
     calcada = db.Column(db.String(100))
     observacoes = db.Column(db.Text)
+    fotos = db.relationship("FotoVistoria", back_populates="vistoria", cascade="all, delete-orphan")
 
     obra_id = db.Column(db.Integer, db.ForeignKey('obra.id', name='fk_vistoria_obra'))
     obra = db.relationship("Obra", backref="vistorias")
@@ -101,3 +102,19 @@ class Obra(db.Model):
     data_inicio = db.Column(db.Date)
     data_fim = db.Column(db.Date)
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+
+class FotoVistoria(db.Model):
+    __tablename__ = 'foto_vistoria'
+
+    id = db.Column(db.Integer, primary_key=True)
+    titulo = db.Column(db.String(100), nullable=True)
+    url = db.Column(db.String(500), nullable=False)
+    descricao = db.Column(db.String(200))
+    data_envio = db.Column(db.DateTime, default=datetime.utcnow)
+
+    vistoria_id = db.Column(db.Integer, db.ForeignKey('vistoria_imovel.id'), nullable=False)
+    vistoria = db.relationship("VistoriaImovel", back_populates="fotos")  # ✅ aqui está o ajuste
+
+

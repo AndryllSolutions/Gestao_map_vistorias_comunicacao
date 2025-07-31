@@ -1,11 +1,12 @@
 from flask import Flask, request, jsonify, render_template, redirect, session,url_for,send_file,flash
 from flask_cors import CORS
-from models import db, User, Imovel,ComunicacaoObra,VistoriaImovel,AgendamentoVistoria,HistoricoAcao,Obra
+from models import db, User, Imovel,ComunicacaoObra,VistoriaImovel,AgendamentoVistoria,HistoricoAcao,Obra,FotoVistoria
 import os
 from datetime import datetime
 from io import BytesIO
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
 from flask_migrate import Migrate
 from textwrap import wrap
 from sqlalchemy import and_
@@ -13,7 +14,10 @@ import pandas as pd
 from fpdf import FPDF
 from flask_migrate import Migrate
 from datetime import timedelta,datetime
-
+import requests
+from werkzeug.utils import secure_filename
+import ftplib
+from reportlab.lib.colors import black
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.jinja_env.globals['now'] = datetime.now
@@ -442,7 +446,6 @@ def vistoria():
         hora_2 = datetime.strptime(request.form.get("hora_2"), "%H:%M").time() if request.form.get("hora_2") else None
         hora_3 = datetime.strptime(request.form.get("hora_3"), "%H:%M").time() if request.form.get("hora_3") else None
 
-
         nome_responsavel = request.form.get("nome_responsavel")
         cpf_responsavel = request.form.get("cpf_responsavel")
         tipo_vinculo = request.form.get("tipo_vinculo")
@@ -461,20 +464,44 @@ def vistoria():
         observacoes = request.form.get("observacoes")
 
         nova = VistoriaImovel(
-        data_1=data_1, hora_1=hora_1,
-        data_2=data_2, hora_2=hora_2,
-        data_3=data_3, hora_3=hora_3,
-        nome_responsavel=nome_responsavel,
-        cpf_responsavel=cpf_responsavel,
-        tipo_vinculo=tipo_vinculo,
-        municipio=municipio, bairro=bairro, rua=rua, numero=numero,
-        complemento=complemento, celular=celular,
-        tipo_imovel=tipo_imovel, soleira=soleira,
-        calcada=calcada, observacoes=observacoes,
-        obra_id=obra_id if obra_id else None  # 👈 ESSA LINHA
-    )
+            data_1=data_1, hora_1=hora_1,
+            data_2=data_2, hora_2=hora_2,
+            data_3=data_3, hora_3=hora_3,
+            nome_responsavel=nome_responsavel,
+            cpf_responsavel=cpf_responsavel,
+            tipo_vinculo=tipo_vinculo,
+            municipio=municipio, bairro=bairro, rua=rua, numero=numero,
+            complemento=complemento, celular=celular,
+            tipo_imovel=tipo_imovel, soleira=soleira,
+            calcada=calcada, observacoes=observacoes,
+            obra_id=obra_id if obra_id else None
+        )
 
         db.session.add(nova)
+        db.session.commit()  # Commit necessário antes de salvar fotos (para ter ID)
+
+        # 📸 Upload das fotos
+        fotos = request.files.getlist("fotos[]")
+        descricoes = request.form.getlist("descricao_fotos[]")
+        api_key = "7fc78fa7-ff70-4921-bcc75dd59e58-588a-4188"
+
+        for i, foto in enumerate(fotos):
+            if foto and foto.filename:
+                nome = secure_filename(f"vistoria_{nova.id}_{i}_{foto.filename}")
+                temp_path = os.path.join("temp", nome)
+                foto.save(temp_path)
+
+                url = upload_bunny(nome, temp_path, api_key)
+                os.remove(temp_path)
+
+                if url:
+                    nova_foto = FotoVistoria(
+                        url=url,
+                        descricao=descricoes[i] if i < len(descricoes) else "",
+                        vistoria_id=nova.id
+                    )
+                    db.session.add(nova_foto)
+
         db.session.commit()
 
         # Registrar histórico da ação
@@ -487,10 +514,10 @@ def vistoria():
                 observacao=f"Vistoria criada no endereço {nova.rua}, {nova.bairro}"
             )
 
+        flash("✅ Vistoria registrada com sucesso!")
         return redirect(url_for("vistoria"))
-    
+
     obras = Obra.query.all()
-    flash("✅ Vistoria registrada com sucesso!")
     return render_template("vistoria_form.html", obras=obras)
 
 @app.route("/vistorias")
@@ -506,12 +533,9 @@ def listar_vistorias():
 
 
 
-
-
 @app.route("/vistoria/laudo/<int:id>")
 def gerar_laudo_vistoria(id):
     vistoria = VistoriaImovel.query.get_or_404(id)
-
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     largura, altura = A4
@@ -524,12 +548,19 @@ def gerar_laudo_vistoria(id):
             y -= line_height
         return y
 
-    # Título
+    # Logo
+    try:
+        logo = ImageReader(LOGO_PATH)
+        c.drawImage(logo, 50, altura - 60, width=100, preserveAspectRatio=True, mask='auto')
+    except Exception as e:
+        print("Erro ao carregar o logo:", e)
+
+    # Cabeçalho
     c.setFont("Helvetica-Bold", 16)
     c.drawCentredString(largura / 2, y, "LAUDO DA VISTORIA CAUTELAR")
     y -= 40
 
-    # Dados da vistoria
+    # Dados principais
     c.setFont("Helvetica", 12)
     c.drawString(50, y, f"Data da Vistoria: {vistoria.data_1 or 'N/A'} {vistoria.hora_1 or ''}")
     y -= 20
@@ -544,9 +575,12 @@ def gerar_laudo_vistoria(id):
     c.drawString(50, y, f"Soleira: {vistoria.soleira}")
     y -= 20
     c.drawString(50, y, f"Calçada: {vistoria.calcada}")
+    y -= 20
+    obra_nome = vistoria.obra.nome if vistoria.obra else "Obra não especificada"
+    c.drawString(50, y, f"Obra: {obra_nome}")
     y -= 30
 
-    # Norma Técnica
+    # Normas e LGPD
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, y, "Norma Técnica")
     y -= 20
@@ -559,7 +593,6 @@ def gerar_laudo_vistoria(id):
     )
     y -= 10
 
-    # LGPD
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, y, "Informações Legais - LGPD")
     y -= 20
@@ -579,7 +612,6 @@ def gerar_laudo_vistoria(id):
     y = draw_wrapped_text(observacoes, 50, y)
 
     y -= 20
-    # Ciência do Morador
     c.setFont("Helvetica-Bold", 12)
     c.drawString(50, y, "Ciência do Morador quanto à Vistoria")
     y -= 20
@@ -590,12 +622,62 @@ def gerar_laudo_vistoria(id):
     )
     y = draw_wrapped_text(ciencia_texto, 50, y)
 
-    # Assinatura
     y -= 40
     c.drawString(50, y, "________________________________________")
     y -= 15
     c.drawString(50, y, "Assinatura do Responsável")
 
+    # Fotos
+    fotos = vistoria.fotos
+    if fotos:
+        c.showPage()
+        c.setFont("Helvetica-Bold", 14)
+        c.drawCentredString(largura / 2, altura - 50, "REGISTRO FOTOGRÁFICO")
+
+        img_width = 220
+        img_height = 140
+        cols = 2
+        rows = 3
+        space_x = 40
+        space_y = 90
+        margin_x = 50
+        TITULO_Y = altura - 50
+        margin_top = TITULO_Y - 160
+
+        x_positions = [margin_x + (img_width + space_x) * col for col in range(cols)]
+        y_positions = [margin_top - (img_height + space_y) * row for row in range(rows)]
+
+        for index, foto in enumerate(fotos):
+            col = index % cols
+            row = (index // cols) % rows
+
+            if index % 6 == 0 and index > 0:
+                c.showPage()
+                c.setFont("Helvetica-Bold", 14)
+                c.drawCentredString(largura / 2, altura - 50, "REGISTRO FOTOGRÁFICO")
+
+            x = x_positions[col]
+            y = y_positions[row]
+
+            try:
+                img = ImageReader(foto.url)
+                c.drawImage(img, x, y, width=img_width, height=img_height, preserveAspectRatio=True, anchor='n')
+                c.setStrokeColor(black)
+                c.rect(x, y, img_width, img_height, fill=0)
+
+                legenda = foto.descricao or "Sem título"
+                c.setFont("Helvetica", 10)
+                c.drawCentredString(x + img_width / 2, y - 14, f"Foto {index + 1}: {legenda}")
+
+                if foto.data_envio:
+                    data_formatada = foto.data_envio.strftime("%d/%m/%Y %H:%M")
+                    c.setFont("Helvetica-Oblique", 8)
+                    c.drawCentredString(x + img_width / 2, y - 28, f"Enviada em {data_formatada}")
+
+            except Exception as e:
+                print("Erro ao carregar imagem no PDF:", e)
+
+    # Finaliza o PDF
     c.save()
     buffer.seek(0)
 
@@ -761,17 +843,42 @@ def editar_vistoria(id):
     vistoria = VistoriaImovel.query.get_or_404(id)
 
     if request.method == "POST":
-        vistoria.municipio = request.form["municipio"]
-        vistoria.bairro = request.form["bairro"]
-        vistoria.rua = request.form["rua"]
-        vistoria.data_1 = datetime.strptime(request.form["data_1"], "%Y-%m-%d").date()
-        vistoria.hora_1 = datetime.strptime(request.form["hora_1"], "%H:%M").time()  # ← aqui a correção
-        vistoria.tipo_imovel = request.form["tipo_imovel"]
-        vistoria.observacoes = request.form["observacoes"]
+        # Atualiza os campos principais da vistoria
+        vistoria.municipio = request.form.get("municipio")
+        vistoria.bairro = request.form.get("bairro")
+        vistoria.rua = request.form.get("rua")
+        vistoria.data_1 = datetime.strptime(request.form.get("data_1"), "%Y-%m-%d").date()
+        vistoria.hora_1 = datetime.strptime(request.form.get("hora_1"), "%H:%M").time()
+        vistoria.tipo_imovel = request.form.get("tipo_imovel")
+        vistoria.observacoes = request.form.get("observacoes")
 
-        db.session.commit()
+        db.session.commit()  # commit para garantir que o ID existe para nomear as fotos
 
-        # Registrar histórico
+        # Upload das fotos
+        fotos = request.files.getlist("fotos[]")
+        descricoes = request.form.getlist("descricao_fotos[]")
+        api_key = "7fc78fa7-ff70-4921-bcc75dd59e58-588a-4188"  # idealmente use .env
+
+        for i, foto in enumerate(fotos):
+            if foto and descricoes[i].strip():
+                nome = secure_filename(f"vistoria_{vistoria.id}_{i}_{foto.filename}")
+                temp_path = os.path.join("temp", nome)
+                foto.save(temp_path)
+
+                url = upload_bunny(nome, temp_path, api_key)
+                os.remove(temp_path)
+
+                if url:
+                    nova_foto = FotoVistoria(
+                        url=url,
+                        descricao=descricoes[i].strip(),
+                        vistoria_id=vistoria.id
+                    )
+                    db.session.add(nova_foto)
+
+        db.session.commit()  # commit final após adicionar todas as fotos
+
+        # Histórico de edição
         if "user_id" in session:
             registrar_acao(
                 usuario_id=session["user_id"],
@@ -785,6 +892,43 @@ def editar_vistoria(id):
         return redirect(url_for("listar_vistorias"))
 
     return render_template("editar_vistoria.html", vistoria=vistoria)
+
+@app.route("/vistoria/<int:id>/excluir", methods=["POST"])
+def excluir_vistoria(id):
+    # Verifica se o usuário está logado
+    if "usuario" not in session:
+        flash("⚠️ Você precisa estar logado.", "warning")
+        return redirect(url_for("login"))
+
+    # Verifica se é administrador
+    usuario = User.query.get(session["user_id"])
+    if usuario.cargo != "admin":
+        flash("⚠️ Ação não permitida para seu perfil.", "warning")
+        return redirect(url_for("listar_vistorias"))
+
+    # Busca e tenta excluir a vistoria
+    vistoria = VistoriaImovel.query.get_or_404(id)
+
+    try:
+        db.session.delete(vistoria)
+        db.session.commit()
+
+        # Registrar no histórico
+        registrar_acao(
+            usuario_id=usuario.id,
+            tipo_acao="exclusão",
+            entidade="Vistoria",
+            entidade_id=id,
+            observacao=f"Vistoria da rua {vistoria.rua}, nº {vistoria.numero} excluída."
+        )
+
+        flash("✅ Vistoria excluída com sucesso!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"❌ Erro ao excluir: {str(e)}", "danger")
+
+    return redirect(url_for("listar_vistorias"))
+
 
 
 @app.route("/historico")
@@ -964,6 +1108,55 @@ def painel_obra(id):
                            vistorias=vistorias,
                            agendamentos=agendamentos,
                            comunicacoes=comunicacoes)
+
+
+def upload_bunny(nome_arquivo, caminho, api_key):
+    url = f"https://br.storage.bunnycdn.com/fotos-enotec-vistorias/{nome_arquivo}"
+    headers = {"AccessKey": api_key, "Content-Type": "application/octet-stream"}
+
+    with open(caminho, "rb") as f:
+        r = requests.put(url, headers=headers, data=f)
+
+    if r.status_code == 201:
+        # ✅ Use a nova Pull Zone correta:
+        return f"https://enotec-vistorias.b-cdn.net/{nome_arquivo}"
+    else:
+        print("Erro no upload Bunny:", r.text)
+        return None
+
+
+# Rota para upload de múltiplas fotos com título associadas a uma vistoria
+@app.route("/vistoria/<int:id>/upload_fotos", methods=["POST"])
+def upload_fotos(id):
+    vistoria = VistoriaImovel.query.get_or_404(id)
+    fotos = request.files.getlist("fotos")
+    titulos = request.form.getlist("titulos")  # campo extra do formulário
+
+    api_key = "7fc78fa7-ff70-4921-bcc75dd59e58-588a-4188"
+
+    for i, foto in enumerate(fotos):
+        if not foto:
+            continue
+        
+        nome_arquivo = secure_filename(f"vistoria_{id}_{foto.filename.replace(' ', '_')}")
+        os.makedirs("temp", exist_ok=True)
+        caminho_temporario = os.path.join("temp", nome_arquivo)
+        foto.save(caminho_temporario)
+
+        url_bunny = upload_imagem_bunny(nome_arquivo, caminho_temporario, api_key)
+        os.remove(caminho_temporario)
+
+        if url_bunny:
+            nova_foto = FotoVistoria(
+                url=url_bunny,
+                descricao=titulos[i] if i < len(titulos) else "",
+                vistoria_id=id
+            )
+            db.session.add(nova_foto)
+
+    db.session.commit()
+    flash("✅ Fotos enviadas com sucesso!", "success")
+    return redirect(url_for("editar_vistoria", id=id))
 
 
 if __name__ == "__main__":
