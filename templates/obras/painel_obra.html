@@ -4,6 +4,11 @@
   <h2>Painel da Obra: {{ obra.nome }}</h2>
   <p><strong>Responsável:</strong> {{ obra.responsavel }}</p>
   <p><strong>Endereço:</strong> {{ obra.endereco }}</p>
+  <!-- 🔘 Botão para ver fotos -->
+<a href="{{ url_for('admin_fotos') }}" class="btn btn-outline-primary btn-sm mb-3">
+  📷 Ver todas as fotos desta e outras obras
+</a>
+<hr />
   <hr />
 
   <!-- Checklist -->

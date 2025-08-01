@@ -18,6 +18,8 @@ import requests
 from werkzeug.utils import secure_filename
 import ftplib
 from reportlab.lib.colors import black
+from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.jinja_env.globals['now'] = datetime.now
@@ -47,6 +49,100 @@ with app.app_context():
 def index():
     return render_template("index.html")
 
+@app.route('/criar_usuario', methods=["POST"])
+def criar_usuario():
+    if "usuario" not in session:
+        return redirect("/login")
+
+    user = User.query.filter_by(email=session["usuario"]).first()
+    if user.cargo != "admin":
+        return "Acesso negado", 403
+
+    email = request.form.get("email")
+    senha = request.form.get("senha")
+    cargo = request.form.get("cargo")
+    obra_id = request.form.get("obra_id") or None
+
+    if not email or not senha:
+        flash("E-mail e senha são obrigatórios.", "warning")
+        return redirect(url_for("gerenciar_usuarios"))
+
+    # Verifica se já existe o e-mail
+    if User.query.filter_by(email=email).first():
+        flash("Já existe um usuário com esse e-mail.", "danger")
+        return redirect(url_for("gerenciar_usuarios"))
+
+    hashed_senha = generate_password_hash(senha)
+    novo_usuario = User(
+        email=email,
+        password=hashed_senha,
+        cargo=cargo,
+        obra_id=int(obra_id) if obra_id else None
+    )
+
+    db.session.add(novo_usuario)
+    db.session.commit()
+    flash("Usuário criado com sucesso!", "success")
+    return redirect(url_for("gerenciar_usuarios"))
+@app.route("/redefinir-senha", methods=["GET", "POST"])
+def form_redefinir_senha():
+    if request.method == "POST":
+        email = request.form.get("email")
+        nova_senha = request.form.get("nova_senha")
+
+        user = User.query.filter_by(email=email).first()
+        if user:
+            user.password = generate_password_hash(nova_senha)
+            db.session.commit()
+            flash("Senha atualizada com sucesso!", "success")
+            return redirect(url_for("index"))
+        else:
+            flash("E-mail não encontrado.", "danger")
+
+    return render_template("redefinir_senha.html")
+
+@app.route("/usuarios/<int:user_id>/editar", methods=["GET", "POST"])
+def editar_usuario(user_id):
+    usuario = User.query.get_or_404(user_id)
+    obras = Obra.query.all()
+
+    if request.method == "POST":
+        email = request.form.get("email").strip()
+        senha = request.form.get("senha")
+        cargo = request.form.get("cargo")
+        obra_id = request.form.get("obra_id") or None
+
+        alterado = False
+
+        if usuario.email != email:
+            usuario.email = email
+            alterado = True
+
+        if senha:
+            usuario.password = generate_password_hash(senha)
+            alterado = True
+
+        if usuario.cargo != cargo:
+            usuario.cargo = cargo
+            alterado = True
+
+        if str(usuario.obra_id) != str(obra_id):
+            usuario.obra_id = int(obra_id) if obra_id else None
+            alterado = True
+
+        if alterado:
+            db.session.commit()
+            flash("Usuário editado com sucesso!", "success")
+        else:
+            flash("Nenhuma alteração foi feita.", "info")
+
+        return redirect(url_for("gerenciar_usuarios"))
+
+    return render_template("editar_usuario.html", usuario=usuario, obras=obras)
+
+
+
+
 @app.route("/dashboard")
 def dashboard():
     if "user_id" not in session:
@@ -71,7 +167,8 @@ def cadastrar():
     if User.query.filter_by(email=email).first():
         return jsonify({"mensagem": "E-mail já cadastrado"}), 409
 
-    novo_usuario = User(email=email, password=senha)
+    hashed = generate_password_hash(senha)
+    novo_usuario = User(email=email, password=hashed)
     db.session.add(novo_usuario)
     db.session.commit()
 
@@ -99,12 +196,11 @@ def cadastro_form():
 def login():
     data = request.get_json()
 
-    # Normaliza o e-mail e a senha (remove espaços e coloca em minúsculo)
     email = data.get("email", "").strip().lower()
     password = data.get("password", "").strip()
 
-    user = User.query.filter_by(email=email, password=password).first()
-    if user:
+    user = User.query.filter_by(email=email).first()
+    if user and check_password_hash(user.password, password):
         session["user_id"] = user.id
         session["usuario"] = user.email
         session["cargo"] = user.cargo
@@ -489,6 +585,8 @@ def vistoria():
             if foto and foto.filename:
                 nome = secure_filename(f"vistoria_{nova.id}_{i}_{foto.filename}")
                 temp_path = os.path.join("temp", nome)
+                os.makedirs("temp", exist_ok=True)  # ← Adicione esta linha aqui
+
                 foto.save(temp_path)
 
                 url = upload_bunny(nome, temp_path, api_key)
@@ -535,6 +633,7 @@ def listar_vistorias():
 
 @app.route("/vistoria/laudo/<int:id>")
 def gerar_laudo_vistoria(id):
+    LOGO_PATH = os.path.join("static", "logo.png")
     vistoria = VistoriaImovel.query.get_or_404(id)
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
@@ -1110,19 +1209,31 @@ def painel_obra(id):
                            comunicacoes=comunicacoes)
 
 
-def upload_bunny(nome_arquivo, caminho, api_key):
-    url = f"https://br.storage.bunnycdn.com/fotos-enotec-vistorias/{nome_arquivo}"
-    headers = {"AccessKey": api_key, "Content-Type": "application/octet-stream"}
+def upload_bunny(nome_arquivo, caminho, api_key, pasta_destino=None):
+    # Montar caminho final no BunnyCDN
+    if pasta_destino:
+        caminho_remoto = f"{pasta_destino}/{nome_arquivo}".replace(" ", "_")
+    else:
+        caminho_remoto = nome_arquivo.replace(" ", "_")
+
+    # 🔒 URL de upload para a Storage Zone
+    url = f"https://br.storage.bunnycdn.com/fotos-enotec-vistorias/{caminho_remoto}"
+
+    headers = {
+        "AccessKey": api_key,
+        "Content-Type": "application/octet-stream"
+    }
 
     with open(caminho, "rb") as f:
         r = requests.put(url, headers=headers, data=f)
 
     if r.status_code == 201:
-        # ✅ Use a nova Pull Zone correta:
-        return f"https://enotec-vistorias.b-cdn.net/{nome_arquivo}"
+        # 🌐 URL pública via Pull Zone
+        return f"https://enotec-vistorias.b-cdn.net/{caminho_remoto}"
     else:
-        print("Erro no upload Bunny:", r.text)
+        print("❌ Erro no upload Bunny:", r.status_code, r.text)
         return None
+
 
 
 # Rota para upload de múltiplas fotos com título associadas a uma vistoria
@@ -1158,6 +1269,10 @@ def upload_fotos(id):
     flash("✅ Fotos enviadas com sucesso!", "success")
     return redirect(url_for("editar_vistoria", id=id))
 
+@app.route("/admin/fotos")
+def admin_fotos():
+    obras = Obra.query.all()
+    return render_template("obras/fotos_por_obra.html", obras=obras)
 
 if __name__ == "__main__":
     with app.app_context():
