@@ -55,6 +55,13 @@
   <h2 class="mb-4"><i class="bi bi-house-door-fill"></i> Sistema de Cadastro de Imóveis</h2>
 
   <!-- Botões principais -->
+   {% if cargo in ['comunicador', 'vistoriador', 'admin'] %}
+  <div class="col-6 col-md-3">
+  <a href="/atendimentos" class="btn btn-outline-secondary square-button">
+    <i class="bi bi-journals"></i>
+    Vistorias & Comunicações
+  </a>
+</div>
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
       <a href="/comunicacoes" class="btn btn-outline-primary square-button">
@@ -82,7 +89,10 @@
     </div>
   </div>
 
-  <!-- Botões de administração (visíveis apenas para admin) -->
+
+{% endif %}
+
+
  <!-- Botões de administração (visíveis apenas para admin) -->
 {% if cargo == 'admin' %}
 <div class="row g-3 mb-4">

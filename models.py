@@ -63,9 +63,12 @@ class VistoriaImovel(db.Model):
     calcada = db.Column(db.String(100))
     observacoes = db.Column(db.Text)
     fotos = db.relationship("FotoVistoria", back_populates="vistoria", cascade="all, delete-orphan")
+    finalizada = db.Column(db.Boolean, default=False)
 
     obra_id = db.Column(db.Integer, db.ForeignKey('obra.id', name='fk_vistoria_obra'))
     obra = db.relationship("Obra", backref="vistorias")
+    comunicacao_id = db.Column(db.Integer, db.ForeignKey('comunicacao_obra.id'))
+    comunicacao = db.relationship("ComunicacaoObra", backref="vistoria", uselist=False)
 
 class AgendamentoVistoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)

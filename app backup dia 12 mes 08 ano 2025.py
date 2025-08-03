@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template, redirect, session,ur
 from flask_cors import CORS
 from models import db, User, Imovel,ComunicacaoObra,VistoriaImovel,AgendamentoVistoria,HistoricoAcao,Obra,FotoVistoria
 import os
-from datetime import datetime, time
+from datetime import datetime
 from io import BytesIO
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -552,8 +552,6 @@ def dashboard_power_bi():
 def vistoria():
     if request.method == "POST":
         obra_id = request.form.get("obra_id")
-        comunicacao_id = request.form.get("comunicacao_id")  # 🆕 novo campo
-
         data_1 = datetime.strptime(request.form.get("data_1"), "%Y-%m-%d").date()
         data_2 = datetime.strptime(request.form.get("data_2"), "%Y-%m-%d").date() if request.form.get("data_2") else None
         data_3 = datetime.strptime(request.form.get("data_3"), "%Y-%m-%d").date() if request.form.get("data_3") else None
@@ -589,14 +587,13 @@ def vistoria():
             complemento=complemento, celular=celular,
             tipo_imovel=tipo_imovel, soleira=soleira,
             calcada=calcada, observacoes=observacoes,
-            obra_id=obra_id if obra_id else None,
-            comunicacao_id=comunicacao_id if comunicacao_id else None  # 🆕 salvando vínculo
+            obra_id=obra_id if obra_id else None
         )
 
         db.session.add(nova)
-        db.session.commit()
+        db.session.commit()  # Commit necessário antes de salvar fotos (para ter ID)
 
-        # Upload das fotos
+        # 📸 Upload das fotos
         fotos = request.files.getlist("fotos[]")
         descricoes = request.form.getlist("descricao_fotos[]")
         api_key = "7fc78fa7-ff70-4921-bcc75dd59e58-588a-4188"
@@ -605,9 +602,10 @@ def vistoria():
             if foto and foto.filename:
                 nome = secure_filename(f"vistoria_{nova.id}_{i}_{foto.filename}")
                 temp_path = os.path.join("temp", nome)
-                os.makedirs("temp", exist_ok=True)
+                os.makedirs("temp", exist_ok=True)  # ← Adicione esta linha aqui
 
                 foto.save(temp_path)
+
                 url = upload_bunny(nome, temp_path, api_key)
                 os.remove(temp_path)
 
@@ -621,7 +619,7 @@ def vistoria():
 
         db.session.commit()
 
-        # Histórico da ação
+        # Registrar histórico da ação
         if "user_id" in session:
             registrar_acao(
                 usuario_id=session["user_id"],
@@ -635,9 +633,7 @@ def vistoria():
         return redirect(url_for("vistoria"))
 
     obras = Obra.query.all()
-    comunicacoes = ComunicacaoObra.query.all()  # 🆕
-    return render_template("vistoria_form.html", obras=obras, comunicacoes=comunicacoes)
-
+    return render_template("vistoria_form.html", obras=obras)
 
 @app.route("/vistorias")
 def listar_vistorias():
@@ -1294,198 +1290,6 @@ def upload_fotos(id):
 def admin_fotos():
     obras = Obra.query.all()
     return render_template("obras/fotos_por_obra.html", obras=obras)
-
-@app.route("/atendimento/<int:id>", methods=["GET", "POST"])
-def atendimento_unificado(id):
-    if "user_id" not in session:
-        return redirect(url_for("login"))
-
-    vistoria = VistoriaImovel.query.get_or_404(id)
-    comunicacao = vistoria.comunicacao  # pode ser None se não houver
-
-    if request.method == "POST":
-        # ✅ Atualiza obra_id dinamicamente
-        obra_id = request.form.get("obra_id") or session.get("obra_id")
-        vistoria.obra_id = int(obra_id) if obra_id else None
-
-        # Atualiza os dados do comunicador
-        if session["cargo"] in ["comunicador", "admin"] and comunicacao:
-            comunicacao.nome = request.form.get("nome")
-            comunicacao.telefone = request.form.get("telefone")
-            comunicacao.cpf = request.form.get("cpf")
-            comunicacao.comunicado = request.form.get("comunicado")
-            comunicacao.endereco = request.form.get("endereco")
-            comunicacao.tipo_imovel = request.form.get("tipo_imovel")
-            comunicacao.economia = request.form.get("economia")
-
-        # Atualiza dados do vistoriador
-        if session["cargo"] in ["vistoriador", "admin"]:
-            for i in range(1, 4):
-                data_str = request.form.get(f"data_{i}")
-                hora_str = request.form.get(f"hora_{i}")
-                if data_str:
-                    setattr(vistoria, f"data_{i}", datetime.strptime(data_str, "%Y-%m-%d").date())
-                if hora_str:
-                    setattr(vistoria, f"hora_{i}", datetime.strptime(hora_str, "%H:%M").time())
-
-            vistoria.bairro = request.form.get("bairro")
-            vistoria.rua = request.form.get("rua")
-            vistoria.numero = request.form.get("numero")
-            vistoria.observacoes = request.form.get("observacoes")
-            vistoria.finalizada = "finalizada" in request.form
-
-            # Upload de fotos
-            fotos = request.files.getlist("fotos[]")
-            descricoes = request.form.getlist("descricao_fotos[]")
-            api_key = "SUA_API_KEY_BUNNY"
-
-            for i, foto in enumerate(fotos):
-                if foto and foto.filename:
-                    nome = secure_filename(f"foto_vistoria_{vistoria.id}_{i}_{foto.filename}")
-                    temp_path = os.path.join("temp", nome)
-                    os.makedirs("temp", exist_ok=True)
-                    foto.save(temp_path)
-
-                    url = upload_bunny(nome, temp_path, api_key)
-                    os.remove(temp_path)
-
-                    if url:
-                        nova_foto = FotoVistoria(
-                            url=url,
-                            descricao=descricoes[i] if i < len(descricoes) else "",
-                            vistoria_id=vistoria.id
-                        )
-                        db.session.add(nova_foto)
-
-        db.session.commit()
-
-        registrar_acao(
-            usuario_id=session["user_id"],
-            tipo_acao="edição",
-            entidade="Vistoria",
-            entidade_id=vistoria.id,
-            observacao="Atualização feita no atendimento unificado"
-        )
-
-        flash("✅ Atendimento atualizado com sucesso!")
-        return redirect(url_for("dashboard_unificado"))
-
-    return render_template("atendimento/formulario.html", vistoria=vistoria, comunicacao=comunicacao)
-
-
-
-@app.route("/atendimentos")
-def dashboard_unificado():
-    if "user_id" not in session:
-        return redirect(url_for("login"))
-
-    comunicacoes = ComunicacaoObra.query.all()
-    vistorias = VistoriaImovel.query.all()
-
-    registros = []
-
-    for c in comunicacoes:
-        registros.append({
-            "id": c.id,
-            "nome": c.nome,
-            "rua": c.endereco,
-            "obra": c.obra,
-            "data_envio": c.data_envio,
-            "finalizada": False
-        })
-
-    for v in vistorias:
-        registros.append({
-            "id": v.id,
-            "nome": v.nome_responsavel or (v.comunicacao.nome if v.comunicacao else "Sem nome"),
-            "rua": v.rua or (v.comunicacao.endereco if v.comunicacao else "—"),
-            "obra": v.obra,
-            "data_envio": v.data_1,  # usa data_1 como referência
-            "finalizada": v.finalizada
-        })
-
-    # Ordena os registros por data (mais recente primeiro), se quiser
-
-    registros.sort(
-        key=lambda r: datetime.combine(r["data_envio"], time.min) if r.get("data_envio") else datetime.min,
-        reverse=True
-)
-
-
-    return render_template(
-        "atendimento/dashboard.html",
-        registros=registros,
-        total_comunicacoes=len(comunicacoes),
-        total_vistorias=len(vistorias),
-        total_registros=len(registros)
-    )
-
-
-@app.route("/atendimento/<int:id>")
-def editar_registro_unificado(id):
-    vistoria = VistoriaImovel.query.get_or_404(id)
-    comunicacao = vistoria.comunicacao if vistoria.comunicacao_id else None
-    return render_template("atendimento/formulario.html", vistoria=vistoria, comunicacao=comunicacao)
-
-
-
-@app.template_filter('getattr_safe')
-def getattr_safe(obj, attr):
-    return getattr(obj, attr, '')
-
-@app.route("/atendimento/nova")
-def nova_comunicacao_vistoria():
-    if "user_id" not in session:
-        return redirect(url_for("login"))
-
-    obra_id = request.args.get("obra_id", type=int)
-
-    if not obra_id:
-            flash("É necessário informar uma obra para o atendimento.", "warning")
-            return redirect(url_for("dashboard_unificado"))
-    
-    nova_comunicacao = ComunicacaoObra(
-        nome="",
-        cpf="",
-        endereco="",
-        telefone="",
-        comunicado="",
-        economia="",
-        assinatura="",
-        tipo_imovel="",
-        data_envio=datetime.now(),
-        obra_id=obra_id
-    )
-
-    db.session.add(nova_comunicacao)
-    db.session.flush()  # garante que nova_comunicacao.id esteja disponível
-
-    nova_vistoria = VistoriaImovel(
-        data_1=datetime.now().date(),
-        hora_1=datetime.now().time(),
-        nome_responsavel="",
-        cpf_responsavel="",
-        tipo_vinculo="",
-        municipio="",
-        bairro="",
-        rua="",
-        numero="",
-        complemento="",
-        celular="",
-        tipo_imovel="",
-        soleira="",
-        calcada="",
-        observacoes="",
-        obra_id=obra_id,
-        comunicacao_id=nova_comunicacao.id
-    )
-
-    db.session.add(nova_vistoria)
-    db.session.commit()
-
-    # Redireciona direto para o formulário unificado já com IDs corretos
-    return redirect(url_for("atendimento_unificado", id=nova_vistoria.id))
-
 
 if __name__ == "__main__":
     with app.app_context():
