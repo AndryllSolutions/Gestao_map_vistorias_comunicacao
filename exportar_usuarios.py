@@ -1,6 +1,8 @@
-from app import app
-from models import db, User
+from app import create_app
+from app.models import db, User
 import json
+
+app = create_app()
 
 with app.app_context():
     usuarios = User.query.all()

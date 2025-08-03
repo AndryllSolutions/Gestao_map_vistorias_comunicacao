@@ -1,5 +1,13 @@
-from app import app
-from models import db, User, Imovel, ComunicacaoObra, VistoriaImovel, AgendamentoVistoria, HistoricoAcao
+from app import create_app
+from app.models import (
+    db,
+    User,
+    Imovel,
+    ComunicacaoObra,
+    VistoriaImovel,
+    AgendamentoVistoria,
+    HistoricoAcao,
+)
 import json
 import os
 from datetime import datetime, date, time
@@ -27,6 +35,8 @@ def serialize(obj):
             valor = valor.strftime("%H:%M:%S")
         data[col.name] = valor
     return data
+
+app = create_app()
 
 with app.app_context():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
