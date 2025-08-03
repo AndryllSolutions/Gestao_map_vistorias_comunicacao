@@ -1,5 +1,12 @@
-from app import app
-from models import db, User, ComunicacaoObra, VistoriaImovel, AgendamentoVistoria, HistoricoAcao
+from app import create_app
+from app.models import (
+    db,
+    User,
+    ComunicacaoObra,
+    VistoriaImovel,
+    AgendamentoVistoria,
+    HistoricoAcao,
+)
 import json
 from datetime import datetime, date, time
 
@@ -10,6 +17,8 @@ def parse_datetime(obj):
         except:
             return obj
     return obj
+
+app = create_app()
 
 with app.app_context():
     # Restaurar usuários
