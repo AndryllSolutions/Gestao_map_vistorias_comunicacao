@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 
 from ..models import db, Imovel
+from app import db
 
 imoveis_bp = Blueprint('imoveis', __name__)
 

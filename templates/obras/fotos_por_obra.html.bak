@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Fotos por Obra</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    img {
+      object-fit: cover;
+      width: 100%;
+      height: 150px;
+    }
+
+    @media (max-width: 576px) {
+      img {
+        height: 120px;
+      }
+    }
+  </style>
+</head>
+<body class="bg-light p-3">
+
+  <div class="container bg-white p-4 rounded shadow">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+      <h3 class="mb-2">📂 Fotos por Obra e Vistoria</h3>
+      <a href="/dashboard" class="btn btn-sm btn-outline-secondary mb-2">
+        ← Voltar ao Dashboard
+      </a>
+    </div>
+
+    <!-- 🔍 Filtro -->
+    <div class="mb-4">
+      <label for="filtroObra" class="form-label">Filtrar por obra:</label>
+      <select id="filtroObra" class="form-select" onchange="filtrarObra()">
+        <option value="todas">Todas as obras</option>
+        {% for obra in obras %}
+          <option value="obra_{{ obra.id }}">{{ obra.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    {% for obra in obras %}
+      <div class="obra-bloco mb-4" data-obra="obra_{{ obra.id }}">
+        <h5 class="mt-3">🏗️ Obra: {{ obra.nome }}</h5>
+
+        {% if obra.vistorias %}
+          {% for vistoria in obra.vistorias %}
+            <div class="mb-3">
+              <h6 class="text-primary">
+                📑 Vistoria #{{ vistoria.id }} - {{ vistoria.rua }}, {{ vistoria.bairro }}
+              </h6>
+              {% if vistoria.fotos %}
+              <div class="row">
+                {% for foto in vistoria.fotos %}
+                  <div class="col-6 col-md-3 mb-3 text-center">
+                    <img src="{{ foto.url }}" alt="Foto" class="img-fluid rounded shadow-sm">
+                    <p class="small mt-1 text-truncate">{{ foto.descricao or "Sem descrição" }}</p>
+                  </div>
+                {% endfor %}
+              </div>
+              {% else %}
+                <p class="text-muted">Nenhuma foto nesta vistoria.</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted">Nenhuma vistoria cadastrada para esta obra.</p>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <script>
+    function filtrarObra() {
+      const valor = document.getElementById("filtroObra").value;
+      const blocos = document.querySelectorAll(".obra-bloco");
+
+      blocos.forEach((bloco) => {
+        bloco.style.display = (valor === "todas" || bloco.dataset.obra === valor) ? "block" : "none";
+      });
+    }
+  </script>
+</body>
+</html>

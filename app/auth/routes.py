@@ -5,6 +5,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from ..models import db, User, Obra
 from ..utils import registrar_acao
+from app import db
+from app.models import User, HistoricoAcao
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -23,10 +25,12 @@ def criar_usuario():
     if user.cargo != 'admin':
         return 'Acesso negado', 403
 
-    email = request.form.get('email')
-    senha = request.form.get('senha')
-    cargo = request.form.get('cargo')
-    obra_id = request.form.get('obra_id') or None
+    nome = request.form.get("nome")
+    email = request.form.get("email")
+    senha = request.form.get("senha")
+    cargo = request.form.get("cargo")
+    obra_id = request.form.get("obra_id") or None
+
 
     if not email or not senha:
         flash('E-mail e senha são obrigatórios.', 'warning')
@@ -38,11 +42,12 @@ def criar_usuario():
 
     hashed_senha = generate_password_hash(senha)
     novo_usuario = User(
+        nome=nome,
         email=email,
-        password=hashed_senha,
+        password=generate_password_hash(senha),
         cargo=cargo,
-        obra_id=int(obra_id) if obra_id else None
-    )
+        obra_id=obra_id
+)
 
     db.session.add(novo_usuario)
     db.session.commit()
@@ -65,7 +70,7 @@ def form_redefinir_senha():
         else:
             flash('E-mail não encontrado.', 'danger')
 
-    return render_template('redefinir_senha.html')
+    return render_template('auth/redefinir_senha.html')
 
 
 @auth_bp.route('/usuarios/<int:user_id>/editar', methods=['GET', 'POST'])
@@ -105,7 +110,7 @@ def editar_usuario(user_id):
 
         return redirect(url_for('auth.gerenciar_usuarios'))
 
-    return render_template('editar_usuario.html', usuario=usuario, obras=obras)
+    return render_template('usuarios/editar_usuario.html', usuario=usuario, obras=obras)
 
 
 @auth_bp.route('/dashboard')
@@ -114,7 +119,9 @@ def dashboard():
         return redirect(url_for('auth.login'))
 
     user = User.query.get(session['user_id'])
-    return render_template('dashboard.html', usuario=user.email, cargo=user.cargo, ano=datetime.now().year)
+
+    return render_template('auth/dashboard.html', usuario=user.email, cargo=user.cargo, ano=datetime.now().year)
+
 
 
 @auth_bp.route('/cadastro', methods=['POST'])
@@ -148,7 +155,7 @@ def cadastrar():
 
 @auth_bp.route('/cadastro', methods=['GET'])
 def cadastro_form():
-    return render_template('cadastro.html')
+    return render_template('auth/cadastro.html')
 
 
 @auth_bp.route('/login', methods=['POST'])
@@ -196,7 +203,8 @@ def gerenciar_usuarios():
 
     usuarios = User.query.all()
     obras = Obra.query.all()
-    return render_template('gerenciar_usuarios.html', usuarios=usuarios, obras=obras)
+    return  render_template('usuarios/gerenciar_usuarios.html', usuarios=usuarios, obras=obras)
+
 
 
 @auth_bp.route('/atualizar_cargo/<int:user_id>', methods=['POST'])
@@ -247,3 +255,33 @@ def excluir_usuario(user_id):
     )
 
     return redirect(url_for('auth.gerenciar_usuarios'))
+
+@auth_bp.route('/historico')
+def historico():
+    if 'usuario' not in session:
+        return redirect(url_for('auth.login'))
+
+    user = User.query.filter_by(email=session['usuario']).first()
+    if not user or user.cargo != 'admin':
+        return 'Acesso negado', 403
+
+    inicio = request.args.get('inicio')
+    fim = request.args.get('fim')
+    tipo = request.args.get('tipo')
+
+    query = HistoricoAcao.query
+
+    if inicio:
+        inicio_date = datetime.strptime(inicio, '%Y-%m-%d')
+        query = query.filter(HistoricoAcao.data_hora >= inicio_date)
+
+    if fim:
+        fim_date = datetime.strptime(fim, '%Y-%m-%d')
+        query = query.filter(HistoricoAcao.data_hora <= fim_date)
+
+    if tipo:
+        query = query.filter_by(tipo_acao=tipo)
+
+    acoes = query.order_by(HistoricoAcao.data_hora.desc()).all()
+
+    return render_template('historico/historico.html', acoes=acoes)

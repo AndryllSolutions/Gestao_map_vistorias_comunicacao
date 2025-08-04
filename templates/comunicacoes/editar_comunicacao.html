@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Editar Comunicação de Obra</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body class="bg-light p-4">
+
+  <div class="container bg-white rounded shadow p-4">
+    <h3 class="mb-4 text-center"><i class="bi bi-pencil-square"></i> Editar Comunicação de Obra</h3>
+
+    <form method="POST">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Nome</label>
+          <input type="text" name="nome" class="form-control" required value="{{ comunicacao.nome }}">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">CPF</label>
+          <input type="text" name="cpf" class="form-control" required value="{{ comunicacao.cpf }}">
+        </div>
+
+        <div class="col-md-12">
+          <label class="form-label">Endereço</label>
+          <input type="text" name="endereco" class="form-control" required value="{{ comunicacao.endereco }}">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Telefone</label>
+          <input type="text" name="telefone" class="form-control" required value="{{ comunicacao.telefone }}">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Comunicado via</label>
+          <input type="text" name="comunicado" class="form-control" required value="{{ comunicacao.comunicado }}">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Economia</label>
+          <input type="text" name="economia" class="form-control" value="{{ comunicacao.economia }}">
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Assinatura</label>
+          <input type="text" name="assinatura" class="form-control" value="{{ comunicacao.assinatura }}">
+        </div>
+
+        <div class="col-md-12">
+          <label class="form-label">Tipo de Imóvel</label><br>
+          {% set tipos_selecionados = comunicacao.tipo_imovel.split(',') %}
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" name="tipo_imovel" value="Residencial"
+              {% if 'Residencial' in tipos_selecionados %}checked{% endif %}>
+            <label class="form-check-label">Residencial</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" name="tipo_imovel" value="Comercial"
+              {% if 'Comercial' in tipos_selecionados %}checked{% endif %}>
+            <label class="form-check-label">Comercial</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" name="tipo_imovel" value="Misto"
+              {% if 'Misto' in tipos_selecionados %}checked{% endif %}>
+            <label class="form-check-label">Misto</label>
+          </div>
+        </div>
+        
+        <div class="col-12 d-flex justify-content-between mt-4">
+          <a href="{{ url_for('obras.listar_comunicacoes' }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Cancelar
+          </a>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> Salvar Alterações
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

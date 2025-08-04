@@ -67,7 +67,7 @@
 
   <!-- Botão Voltar -->
   <div class="text-center mt-4">
-    <a href="{{ url_for('auth.dashboard' }}" class="btn btn-outline-secondary">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left-circle"></i> Voltar ao Dashboard
     </a>
   </div>

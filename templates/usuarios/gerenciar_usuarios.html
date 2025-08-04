@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerenciar Usuários</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  <style>
+    .tabela-usuarios {
+      display: block;
+    }
+
+    .cards-usuarios {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .tabela-usuarios {
+        display: none;
+      }
+
+      .cards-usuarios {
+        display: block;
+      }
+
+      .card-usuario {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: #fff;
+      }
+
+      .card-usuario h5 {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .card-usuario select,
+      .card-usuario button {
+        margin-bottom: 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container mt-4">
+  <button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#modalNovoUsuario">
+    Novo Usuário
+  </button>
+
+  <h2 class="mb-4">Gerenciar Usuários</h2>
+<div class="mb-3">
+  <input type="text" id="filtroUsuarios" class="form-control" placeholder="🔍 Filtrar por email, cargo ou obra..." onkeyup="filtrarUsuarios()">
+</div>
+<div class="row mb-3">
+  <div class="col-md-6 mb-2">
+    <input type="text" id="filtroTexto" class="form-control" placeholder="🔍 Buscar por nome, email, cargo..." onkeyup="filtrarUsuarios()">
+  </div>
+  <div class="col-md-6">
+    <select id="filtroObra" class="form-select" onchange="filtrarUsuarios()">
+      <option value="">🔍 Filtrar por Obra</option>
+      {% for obra in obras %}
+        <option value="{{ obra.nome|lower }}">{{ obra.nome }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+  <!-- TABELA DESKTOP -->
+  <div class="table-responsive tabela-usuarios">
+    <table class="table table-striped table-bordered">
+      <thead class="table-dark">
+        <tr>
+          <th>ID</th>
+          <th>Nome</th>
+          <th>Email</th>
+          <th>Cargo Atual</th>
+          <th>Obra Associada</th>
+          <th>Alterar Cargo / Obra</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in usuarios %}
+        <tr>
+          <td>{{ u.id }}</td>
+          <th>{{ u.nome }}</th>
+          <td>{{ u.email }}</td>
+          <td>{{ u.cargo }}</td>
+          <td>{{ u.obra.nome if u.obra else '---' }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('auth.gerenciar_usuarios') }}" class="d-flex flex-wrap gap-2">
+              <input type="hidden" name="usuario_id" value="{{ u.id }}">
+
+              <select name="novo_cargo" class="form-select">
+                <option value="usuario" {% if u.cargo == 'usuario' %}selected{% endif %}>Usuário</option>
+                <option value="vistoriador" {% if u.cargo == 'vistoriador' %}selected{% endif %}>Vistoriador</option>
+                <option value="comunicador" {% if u.cargo == 'comunicador' %}selected{% endif %}>Comunicador</option>
+                <option value="admin" {% if u.cargo == 'admin' %}selected{% endif %}>Administrador</option>
+              </select>
+
+              <select name="obra_id" class="form-select">
+                <option value="">-- Sem obra --</option>
+                {% for obra in obras %}
+                  <option value="{{ obra.id }}" {% if u.obra_id == obra.id %}selected{% endif %}>{{ obra.nome }}</option>
+                {% endfor %}
+              </select>
+
+              <button type="submit" class="btn btn-primary">Salvar</button>
+            </form>
+          </td>
+          <td class="d-flex gap-2">
+            <a href="{{ url_for('auth.editar_usuario', user_id=u.id) }}" class="btn btn-warning btn-sm">Editar</a>
+            <form method="POST" action="{{ url_for('auth.excluir_usuario', user_id=u.id) }}" onsubmit="return confirm('Tem certeza que deseja excluir?');">
+              <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- CARDS MOBILE -->
+  <div class="cards-usuarios">
+    {% for u in usuarios %}
+    <div class="card-usuario">
+      <h5><strong>ID:</strong> {{ u.id }}</h5>
+      <p><strong>Email:</strong> {{ u.email }}</p>
+      <p><strong>Cargo:</strong> {{ u.cargo }}</p>
+      <p><strong>Obra:</strong> {{ u.obra.nome if u.obra else '---' }}</p>
+
+      <form method="POST" action="{{ url_for('auth.gerenciar_usuarios') }}">
+        <input type="hidden" name="usuario_id" value="{{ u.id }}">
+
+        <select name="novo_cargo" class="form-select">
+          <option value="usuario" {% if u.cargo == 'usuario' %}selected{% endif %}>Usuário</option>
+          <option value="vistoriador" {% if u.cargo == 'vistoriador' %}selected{% endif %}>Vistoriador</option>
+          <option value="comunicador" {% if u.cargo == 'comunicador' %}selected{% endif %}>Comunicador</option>
+          <option value="admin" {% if u.cargo == 'admin' %}selected{% endif %}>Administrador</option>
+        </select>
+
+        <select name="obra_id" class="form-select mt-2">
+          <option value="">-- Sem obra --</option>
+          {% for obra in obras %}
+            <option value="{{ obra.id }}" {% if u.obra_id == obra.id %}selected{% endif %}>{{ obra.nome }}</option>
+          {% endfor %}
+        </select>
+
+        <button type="submit" class="btn btn-primary w-100 mt-2">Salvar</button>
+      </form>
+
+      <div class="d-flex gap-2 mt-2">
+        <a href="{{ url_for('auth.editar_usuario', user_id=u.id) }}" class="btn btn-warning btn-sm w-100">Editar</a>
+        <form method="POST" action="{{ url_for('auth.excluir_usuario', user_id=u.id) }}" class="w-100" onsubmit="return confirm('Tem certeza que deseja excluir?');">
+          <button type="submit" class="btn btn-danger btn-sm w-100">Excluir</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <a href="{{ url_for('auth.dashboard') }}" class="btn btn-secondary mt-3">Voltar ao Dashboard</a>
+</div>
+
+<!-- MODAL NOVO USUÁRIO -->
+<div class="modal fade" id="modalNovoUsuario" tabindex="-1" aria-labelledby="modalNovoUsuarioLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" action="/criar_usuario">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalNovoUsuarioLabel">Adicionar Novo Usuário</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+           <div class="mb-3">
+            <label for="nome" class="form-label">Nome</label>
+            <input type="text" name="nome" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label for="email" class="form-label">E-mail</label>
+            <input type="email" name="email" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label for="senha" class="form-label">Senha</label>
+            <input type="password" name="senha" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label for="cargo" class="form-label">Cargo</label>
+            <select name="cargo" class="form-select">
+              <option value="usuario">Usuário</option>
+              <option value="vistoriador">Vistoriador</option>
+              <option value="comunicador">Comunicador</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="obra_id" class="form-label">Obra Associada</label>
+            <select name="obra_id" class="form-select">
+              <option value="">-- Nenhuma --</option>
+              {% for obra in obras %}
+                <option value="{{ obra.id }}">{{ obra.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Criar Usuário</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+function filtrarUsuarios() {
+  const texto = document.getElementById('filtroTexto').value.toLowerCase();
+  const obraSelecionada = document.getElementById('filtroObra').value.toLowerCase();
+
+  const match = (content) =>
+    content.includes(texto) && (obraSelecionada === "" || content.includes(obraSelecionada));
+
+  // Tabela
+  document.querySelectorAll('.tabela-usuarios tbody tr').forEach(row => {
+    const content = row.textContent.toLowerCase();
+    row.style.display = match(content) ? '' : 'none';
+  });
+
+  // Cards
+  document.querySelectorAll('.cards-usuarios .card-usuario').forEach(card => {
+    const content = card.textContent.toLowerCase();
+    card.style.display = match(content) ? '' : 'none';
+  });
+}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vistoria do Imóvel</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light p-3">
+
+  <div class="container bg-white p-4 rounded shadow">
+    <h3 class="mb-4">📋 Vistoria do Imóvel</h3>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
+          {{ messages[0] }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="/vistoria" enctype="multipart/form-data">
+
+      <!-- 1. Tentativas de visita -->
+      <h5 class="mb-3">1. Dados da Visita</h5>
+      {% for i in range(1, 3 + 1) %}
+      <div class="row mb-2">
+        <div class="col-md-4">
+          <label>Data {{ i }}ª tentativa</label>
+          <input type="date" name="data_{{ i }}" class="form-control">
+        </div>
+        <div class="col-md-4">
+          <label>Hora {{ i }}ª tentativa</label>
+          <input type="time" name="hora_{{ i }}" class="form-control">
+        </div>
+      </div>
+      {% endfor %}
+
+      <!-- 2. Dados cadastrais -->
+      <h5 class="mt-4 mb-3">2. Dados Cadastrais do Imóvel</h5>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label>Município</label>
+          <input type="text" name="municipio" class="form-control" required>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label>Bairro</label>
+          <input type="text" name="bairro" class="form-control" required>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label>Rua/Av</label>
+          <input type="text" name="rua" class="form-control" required>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label>Número</label>
+          <input type="text" name="numero" class="form-control" required>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label>Complemento</label>
+          <input type="text" name="complemento" class="form-control">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label>Celular</label>
+          <input type="tel" name="celular" class="form-control">
+        </div>
+      </div>
+
+      <!-- 3. Situação do Imóvel -->
+      <h5 class="mt-4 mb-3">3. Situação do Imóvel</h5>
+      <div class="mb-3">
+        <label class="form-label">Tipo de Imóvel</label><br>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="tipo_imovel" value="residencial">
+          <label class="form-check-label">Residencial</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="tipo_imovel" value="comercial">
+          <label class="form-check-label">Comercial</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="tipo_imovel" value="misto">
+          <label class="form-check-label">Misto</label>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Soleira</label><br>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="soleira" value="positiva">
+          <label class="form-check-label">Positiva</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="soleira" value="negativa">
+          <label class="form-check-label">Negativa</label>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Calçada</label><br>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="calcada" value="cimento">
+          <label class="form-check-label">Cimento</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="calcada" value="revestimento">
+          <label class="form-check-label">Revestimento</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="calcada" value="sem acabamento">
+          <label class="form-check-label">Sem acabamento</label>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label">Observações</label>
+        <textarea name="observacoes" class="form-control" rows="3" placeholder="Exemplo: Casa longe da influência da obra"></textarea>
+      </div>
+
+      <!-- 4. Ciência do Morador -->
+      <h5 class="mt-4 mb-3">4. Ciência do Morador</h5>
+      <div class="mb-3">
+        <label for="obra_id" class="form-label">Obra Associada</label>
+        <select class="form-select" name="obra_id" id="obra_id">
+          <option value="">-- Nenhuma --</option>
+          {% for obra in obras %}
+            <option value="{{ obra.id }}">{{ obra.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label>Nome do Responsável pelas Informações</label>
+          <input type="text" name="nome_responsavel" class="form-control" required>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label>CPF/RG do Responsável</label>
+          <input type="text" name="cpf_responsavel" class="form-control" required>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Tipo de Vínculo</label><br>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="tipo_vinculo" value="proprietario">
+          <label class="form-check-label">Proprietário</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="tipo_vinculo" value="inquilino">
+          <label class="form-check-label">Inquilino</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="tipo_vinculo" value="responsavel">
+          <label class="form-check-label">Responsável</label>
+        </div>
+      </div>
+
+      <!-- 5. Upload de Fotos -->
+      <h5 class="mt-4 mb-3">5. Fotos da Vistoria</h5>
+      <div id="container-fotos">
+        <div class="mb-3 row foto-item">
+          <div class="col-md-6">
+            <input type="file" name="fotos[]" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <input type="text" name="descricao_fotos[]" class="form-control" placeholder="Descrição da foto" required>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-primary mb-3" onclick="adicionarFoto()">+ Adicionar outra foto</button>
+
+      <script>
+        function adicionarFoto() {
+          const container = document.getElementById("container-fotos");
+          const novo = document.createElement("div");
+          novo.classList.add("row", "mb-3", "foto-item");
+          novo.innerHTML = `
+            <div class="col-md-6">
+              <input type="file" name="fotos[]" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <input type="text" name="descricao_fotos[]" class="form-control" placeholder="Descrição da foto" required>
+            </div>
+          `;
+          container.appendChild(novo);
+        }
+      </script>
+
+      <!-- Botões -->
+      <div class="d-grid d-md-flex justify-content-md-between gap-2 mt-4">
+        <button type="submit" class="btn btn-primary w-100 w-md-auto">
+          <i class="bi bi-save"></i> Salvar Vistoria
+        </button>
+        <a href="/vistorias" class="btn btn-outline-info w-100 w-md-auto">
+          <i class="bi bi-card-checklist"></i> Ver Vistorias
+        </a>
+        <a href="/dashboard" class="btn btn-outline-secondary w-100 w-md-auto">
+          <i class="bi bi-arrow-left"></i> Voltar ao Dashboard
+        </a>
+      </div>
+
+    </form>
+  </div>
+</body>
+</html>

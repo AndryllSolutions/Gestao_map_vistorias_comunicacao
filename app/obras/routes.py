@@ -34,38 +34,31 @@ def editar_comunicacao(id):
         flash('Comunicação atualizada com sucesso!', 'success')
         return redirect(url_for('obras.listar_comunicacoes'))
 
-    return render_template('editar_comunicacao.html', comunicacao=comunicacao)
+    return render_template('comunicacoes/editar_comunicacao.html', comunicacao=comunicacao)
 
 
 @obras_bp.route('/comunicacao', methods=['GET', 'POST'])
 def formulario_comunicacao():
     if request.method == 'POST':
-        nome = request.form.get('nome')
-        cpf = request.form.get('cpf')
-        endereco = request.form.get('endereco')
-        telefone = request.form.get('telefone')
-        comunicado = request.form.get('comunicado')
-        economia = request.form.get('economia')
-        assinatura = request.form.get('assinatura')
-        tipo_imovel = request.form.getlist('tipo_imovel')
-
         novo = ComunicacaoObra(
-            nome=nome,
-            cpf=cpf,
-            endereco=endereco,
-            telefone=telefone,
-            comunicado=comunicado,
-            economia=economia,
-            assinatura=assinatura,
-            tipo_imovel=','.join(tipo_imovel),
+            nome=request.form.get('nome'),
+            cpf=request.form.get('cpf'),
+            endereco=request.form.get('endereco'),
+            telefone=request.form.get('telefone'),
+            comunicado=request.form.get('comunicado'),
+            economia=request.form.get('economia'),
+            assinatura=request.form.get('assinatura'),
+            tipo_imovel=','.join(request.form.getlist('tipo_imovel')),
+            usuario_nome=session.get('usuario_nome')  # 👈 registra o autor da comunicação
         )
-
         db.session.add(novo)
         db.session.commit()
-
+        flash("Comunicação registrada com sucesso.")
         return redirect(url_for('obras.formulario_comunicacao'))
 
-    return render_template('comunicacao_form.html')
+    # ✅ No GET: busca obras
+    obras = Obra.query.all()
+    return render_template('comunicacoes/comunicacao_form.html', obras=obras)
 
 
 @obras_bp.route('/comunicacoes', methods=['GET'])
@@ -75,12 +68,9 @@ def listar_comunicacoes():
 
     user = User.query.get(session['user_id'])
 
-    if user.cargo == 'admin':
-        obras = Obra.query.order_by(Obra.nome).all()
-    else:
-        obras = Obra.query.filter_by(id=user.obra_id).all()
+    obras = Obra.query.order_by(Obra.nome).all() if user.cargo == 'admin' else Obra.query.filter_by(id=user.obra_id).all()
 
-    return render_template('comunicacoes_dashboard.html', obras=obras)
+    return render_template('comunicacoes/comunicacoes_dashboard.html', obras=obras)
 
 
 @obras_bp.route('/comunicacao/passo1', methods=['GET', 'POST'])
@@ -88,14 +78,11 @@ def comunicacao_passo1():
     obras = Obra.query.all()
 
     if request.method == 'POST':
-        session['nome'] = request.form.get('nome')
-        session['cpf'] = request.form.get('cpf')
-        session['endereco'] = request.form.get('endereco')
-        session['telefone'] = request.form.get('telefone')
-        session['obra_id'] = request.form.get('obra_id')
+        for campo in ['nome', 'cpf', 'endereco', 'telefone', 'obra_id']:
+            session[campo] = request.form.get(campo)
         return redirect(url_for('obras.comunicacao_passo2'))
 
-    return render_template('etapa1.html', obras=obras)
+    return render_template('comunicacoes/etapa1.html', obras=obras)
 
 
 @obras_bp.route('/comunicacao/passo2', methods=['GET', 'POST'])
@@ -103,7 +90,7 @@ def comunicacao_passo2():
     if request.method == 'POST':
         session['comunicado'] = request.form.get('comunicado')
         return redirect(url_for('obras.comunicacao_passo3'))
-    return render_template('etapa2.html')
+    return render_template('comunicacoes/etapa2.html')
 
 
 @obras_bp.route('/comunicacao/passo3', methods=['GET', 'POST'])
@@ -143,9 +130,9 @@ def comunicacao_passo3():
         if 'user_id' in session and session.get('cargo') == 'admin':
             return redirect(url_for('obras.listar_comunicacoes'))
         else:
-            return render_template('comunicacao_sucesso.html')
+            return render_template('comunicacoes/comunicacao_sucesso.html')
 
-    return render_template('etapa3.html')
+    return render_template('comunicacoes/etapa3.html')
 
 
 @obras_bp.route('/comunicacao/excluir/<int:id>', methods=['POST'])
@@ -174,7 +161,6 @@ def comunicacoes_dados():
     registros = ComunicacaoObra.query.all()
 
     total = len(registros)
-
     por_endereco = {}
     por_comunicado = {}
     por_tipo = {}
@@ -183,8 +169,7 @@ def comunicacoes_dados():
         por_endereco[r.endereco] = por_endereco.get(r.endereco, 0) + 1
         por_comunicado[r.comunicado] = por_comunicado.get(r.comunicado, 0) + 1
         if r.tipo_imovel:
-            tipos = r.tipo_imovel.split(',')
-            for tipo in tipos:
+            for tipo in r.tipo_imovel.split(','):
                 tipo = tipo.strip()
                 por_tipo[tipo] = por_tipo.get(tipo, 0) + 1
 

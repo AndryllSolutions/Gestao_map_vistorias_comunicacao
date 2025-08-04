@@ -35,7 +35,7 @@
             <td>{{ u.cargo }}</td>
             <td>{{ u.obra.nome if u.obra else '---' }}</td>
             <td>
-              <form method="POST" action="{{ url_for('gerenciar_usuarios') }}" class="d-flex flex-wrap gap-2">
+              <form method="POST" action="{{ url_for('auth.gerenciar_usuarios') }}">" class="d-flex flex-wrap gap-2">
                 <input type="hidden" name="usuario_id" value="{{ u.id }}">
 
                 <select name="novo_cargo" class="form-select me-2">
@@ -56,10 +56,11 @@
               </form>
             </td>
             <td class="d-flex gap-2">
-  <a href="{{ url_for('editar_usuario', user_id=u.id) }}" class="btn btn-warning btn-sm">
+  <a href="{{ url_for('auth.editar_usuario', user_id=u.id) }}" class="btn btn-warning btn-sm">
+
     Editar
   </a>
-  <form method="POST" action="{{ url_for('excluir_usuario', user_id=u.id) }}" onsubmit="return confirm('Tem certeza que deseja excluir?');">
+  <form method="POST" action="{{ url_for('auth.excluir_usuario', user_id=u.id) }}" onsubmit="return confirm('Tem certeza que deseja excluir?');">
     <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
   </form>
 </td>
@@ -69,7 +70,7 @@
         </tbody>
       </table>
     </div>
-    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary mt-3">Voltar ao Dashboard</a>
+    <a href="{{ url_for('auth.dashboard') }}" class="btn btn-secondary mt-3">Voltar ao Dashboard</a>
   </div>
   <!-- Modal Novo Usuário -->
 <div class="modal fade" id="modalNovoUsuario" tabindex="-1" aria-labelledby="modalNovoUsuarioLabel" aria-hidden="true">

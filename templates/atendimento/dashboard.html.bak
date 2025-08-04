@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,15 +7,13 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
 </head>
-
 <body class="bg-light p-3 p-md-4">
   <div class="container bg-white p-4 rounded shadow">
 
     <!-- Título + botão voltar -->
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
       <h3 class="mb-0 text-primary"><i class="bi bi-clipboard-data"></i> Vistorias & Comunicações</h3>
-      <a href="{{ url_for('auth.dashboard') }}" class="btn btn-outline-secondary">
-
+      <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Voltar ao Dashboard
       </a>
     </div>
@@ -75,8 +72,6 @@
           <tr>
             <th>ID</th>
             <th>Nome</th>
-            <th>Comunicador</th>
-            <th>Vistoriador</th>
             <th>Rua</th>
             <th>Obra</th>
             <th>Data</th>
@@ -91,70 +86,23 @@
           <tr>
             <td>{{ r.id }}</td>
             <td>{{ r.nome or 'Sem nome' }}</td>
-            <td>
-              {% if r.comunicador and "(Admin)" in r.comunicador %}
-              <span class="badge bg-dark">
-                {{ r.comunicador.replace(" (Admin)", "") }} <i class="bi bi-shield-lock-fill"></i>
-              </span>
-              {% else %}
-              <span class="badge bg-secondary">
-                {{ r.comunicador or "—" }}
-              </span>
-              {% endif %}
-            </td>
-            <td>{{ r.vistoriador or '—' }}</td>
-
             <td>{{ r.rua }}</td>
             <td>{{ r.obra.nome if r.obra else '—' }}</td>
             <td>
-              {% if r.data_envio %}
-              {{ r.data_envio.strftime('%d/%m/%Y %H:%M') }}
-              {% else %}
-              —
-              {% endif %}
+              {{ r.data_envio.strftime('%d/%m/%Y') if r.data_envio else (r.data_1.strftime('%d/%m/%Y') if r.data_1 else '') }}
             </td>
             <td>
               {% if r.finalizada %}
-              <span class="badge bg-success">Finalizada</span>
+                <span class="badge bg-success">Finalizada</span>
               {% else %}
-              <span class="badge bg-warning text-dark">Em andamento</span>
+                <span class="badge bg-warning text-dark">Em andamento</span>
               {% endif %}
             </td>
             {% if session.cargo == 'admin' %}
             <td>
-              <a href="{{ url_for('atendimento.atendimento_unificado', id=r.id) }}" class="btn btn-sm btn-primary">
+              <a href="{{ url_for('editar_registro_unificado', id=r.id) }}" class="btn btn-sm btn-primary">
                 <i class="bi bi-pencil-square"></i>
               </a>
-
-              <!-- Botão Modal -->
-              <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal"
-                data-bs-target="#confirmarDelete{{ r.id }}">
-                <i class="bi bi-trash"></i>
-              </button>
-
-              <!-- Modal Exclusão -->
-              <div class="modal fade" id="confirmarDelete{{ r.id }}" tabindex="-1"
-                aria-labelledby="modalLabel{{ r.id }}" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                  <div class="modal-content">
-                    <div class="modal-header bg-danger text-white">
-                      <h5 class="modal-title" id="modalLabel{{ r.id }}">Confirmar Exclusão</h5>
-                      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                        aria-label="Fechar"></button>
-                    </div>
-                    <div class="modal-body">
-                      Tem certeza que deseja excluir o atendimento <strong>#{{ r.id }}</strong>?<br>
-                      Esta ação é <span class="text-danger">irreversível</span>.
-                    </div>
-                    <div class="modal-footer">
-                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                      <form action="{{ url_for('atendimento.deletar_atendimento', id=r.id) }}" method="POST">
-                        <button type="submit" class="btn btn-danger">Excluir</button>
-                      </form>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </td>
             {% endif %}
           </tr>
@@ -163,24 +111,21 @@
       </table>
     </div>
     {% else %}
-    <p class="text-muted text-center mt-4">Nenhum registro encontrado ainda.</p>
+      <p class="text-muted text-center mt-4">Nenhum registro encontrado ainda.</p>
     {% endif %}
+  </div>
 
+  <script>
+    // Filtro de busca por texto
+    document.getElementById("filtroBusca").addEventListener("keyup", function () {
+      const filtro = this.value.toLowerCase();
+      const linhas = document.querySelectorAll("#tabelaRegistros tbody tr");
 
-    <script>
-      // Filtro de busca por texto
-      document.getElementById("filtroBusca").addEventListener("keyup", function () {
-        const filtro = this.value.toLowerCase();
-        const linhas = document.querySelectorAll("#tabelaRegistros tbody tr");
-
-        linhas.forEach((linha) => {
-          const texto = linha.textContent.toLowerCase();
-          linha.style.display = texto.includes(filtro) ? "" : "none";
-        });
+      linhas.forEach((linha) => {
+        const texto = linha.textContent.toLowerCase();
+        linha.style.display = texto.includes(filtro) ? "" : "none";
       });
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
+    });
+  </script>
 </body>
-
 </html>

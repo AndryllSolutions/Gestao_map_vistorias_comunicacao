@@ -1,16 +1,21 @@
-from flask_sqlalchemy import SQLAlchemy
+#from flask_sqlalchemy import SQLAlchemy
+from app.extensions import db
+
 from datetime import datetime, date, time
+from app.extensions import db
+from app import db
+from .extensions import db
 
 
-db = SQLAlchemy()
+
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=True)  # <-- temporariamente
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
     cargo = db.Column(db.String(50), default="usuario")
-#
-    # Relacionamento com Obra
+
     obra_id = db.Column(db.Integer, db.ForeignKey('obra.id'))
     obra = db.relationship('Obra', backref='usuarios')
 
@@ -26,11 +31,15 @@ class Imovel(db.Model):
 
 
 class ComunicacaoObra(db.Model):
+    __tablename__ = 'comunicacao_obra'
+
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
     cpf = db.Column(db.String(20))
     endereco = db.Column(db.String(255))
     telefone = db.Column(db.String(50))
+    bairro = db.Column(db.String(100))
+    numero = db.Column(db.String(20))
     comunicado = db.Column(db.String(20))
     economia = db.Column(db.String(50))
     assinatura = db.Column(db.String(100))
@@ -39,6 +48,12 @@ class ComunicacaoObra(db.Model):
 
     obra_id = db.Column(db.Integer, db.ForeignKey('obra.id', name='fk_comunicacao_obra'))
     obra = db.relationship("Obra", backref="comunicacoes")
+
+    # ✅ RELAÇÃO COM USUÁRIO
+    usuario_id = db.Column(db.Integer, db.ForeignKey('user.id', name='fk_usuario_comunicacao'))
+    usuario = db.relationship("User", backref="comunicacoes")  # ✅ AQUI
+    vistorias = db.relationship("VistoriaImovel", back_populates="comunicacao", cascade="all, delete-orphan")
+
 
 
 class VistoriaImovel(db.Model):
@@ -64,11 +79,17 @@ class VistoriaImovel(db.Model):
     observacoes = db.Column(db.Text)
     fotos = db.relationship("FotoVistoria", back_populates="vistoria", cascade="all, delete-orphan")
     finalizada = db.Column(db.Boolean, default=False)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    usuario = db.relationship('User', backref='vistorias')
+
 
     obra_id = db.Column(db.Integer, db.ForeignKey('obra.id', name='fk_vistoria_obra'))
     obra = db.relationship("Obra", backref="vistorias")
     comunicacao_id = db.Column(db.Integer, db.ForeignKey('comunicacao_obra.id'))
     comunicacao = db.relationship("ComunicacaoObra", backref="vistoria", uselist=False)
+    # dentro de VistoriaImovel
+    comunicacao = db.relationship("ComunicacaoObra", back_populates="vistorias")
+    comunicacao_id = db.Column(db.Integer, db.ForeignKey('comunicacao_obra.id'))
 
 class AgendamentoVistoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)

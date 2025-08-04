@@ -1,9 +1,10 @@
 __pycache__/
 *.pyc
-.env
-instance/
-temp/
 *.db
+instance/
+.env
 *.sqlite3
-*.log
-.vscode/
+.mypy_cache/
+.migrations/
+venv/
+.env.*

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard - Cadastro de Imóveis</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+  <style>
+    body {
+      .square-button {
+        width: 100%;
+        min-height: 150px;
+        padding: 18px;
+        font-size: 1.1rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        border-radius: 14px;
+        transition: transform 0.2s ease-in-out;
+      }
+
+      .square-button i {
+        font-size: 2.2rem;
+        margin-bottom: 10px;
+      }
+
+      @media (orientation: landscape) and (max-width: 767px) {
+        .square-button {
+          min-height: 140px;
+          font-size: 1.2rem;
+        }
+
+        .square-button i {
+          font-size: 2.4rem;
+        }
+      }
+
+    }
+
+    @media (min-width: 768px) {
+      .square-button {
+        font-size: 0.9rem;
+        padding: 10px;
+      }
+
+      .square-button i {
+        font-size: 1.6rem;
+      }
+    }
+
+    @media (min-width: 992px) {
+      .square-button {
+        min-height: 120px;
+      }
+    }
+
+    #btnInstalar {
+      position: fixed;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1050;
+      display: none;
+      padding: 12px 20px;
+    }
+
+    footer {
+      margin-top: 40px;
+      text-align: center;
+      color: #6c757d;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header
+    class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-4">
+    <div class="text-muted fst-italic">
+      Usuário conectado: <span id="usuario-nome">{{ usuario }}</span>
+    </div>
+    <a href="/logout" class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-box-arrow-right"></i> Sair
+    </a>
+  </header>
+
+  <h2 class="mb-4"><i class="bi bi-house-door-fill"></i> Sistema de Cadastro de Imóveis</h2>
+
+  {% if cargo in ['comunicador', 'vistoriador', 'admin'] %}
+  <div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-md-3">
+    <a href="/atendimento" class="btn btn-outline-secondary square-button">
+      <i class="bi bi-journals"></i>
+      Vistorias & Comunicações
+    </a>
+  </div>
+  <div class="col-12 col-sm-6 col-md-3">
+    <a href="/agendamentos" class="btn btn-outline-warning square-button">
+      <i class="bi bi-calendar-check"></i>
+      Agendamentos
+    </a>
+  </div>
+</div>
+
+  {% endif %}
+
+ {% if cargo == 'admin' %}
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-md-3">
+      <a href="/gerenciar-usuarios" class="btn square-button btn-outline-dark">
+        <i class="bi bi-people-fill"></i>
+        <span>Gerenciar<br>Usuários</span>
+      </a>
+    </div>
+    <div class="col-12 col-sm-6 col-md-3">
+      <a href="/dashboard_power_bi" class="btn square-button btn-outline-secondary">
+        <i class="bi bi-bar-chart-fill"></i>
+        <span>Dashboard<br>Power BI</span>
+      </a>
+    </div>
+    <div class="col-12 col-sm-6 col-md-3">
+      <a href="/historico" class="btn square-button btn-outline-secondary">
+        <i class="bi bi-clock-history"></i>
+        <span>Histórico<br>de Ações</span>
+      </a>
+    </div>
+    <div class="col-12 col-sm-6 col-md-3">
+      <a href="/obras" class="btn square-button btn-outline-secondary">
+        <i class="bi bi-building"></i>
+        <span>Obras</span>
+      </a>
+    </div>
+  </div>
+{% endif %}
+
+
+  <footer>&copy; {{ ano }} - Sistema de Cadastro de Imóveis | Engenharia Civil</footer>
+
+  <div class="d-md-none text-center mt-3">
+    <a href="/logout" class="btn btn-sm btn-outline-danger w-100">
+      <i class="bi bi-box-arrow-right"></i> Sair
+    </a>
+  </div>
+
+  <button id="btnInstalar" onclick="instalarApp()" class="btn btn-outline-primary">
+    <i class="bi bi-download"></i> Instalar App
+  </button>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.getElementById('usuario-nome').textContent = "{{ usuario }}";
+  </script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/static/service-worker.js")
+        .then((reg) => console.log("Service Worker registrado!", reg))
+        .catch((err) => console.error("Erro ao registrar Service Worker", err));
+    }
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('btnInstalar').style.display = 'inline-block';
+    });
+    function instalarApp() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(() => {
+          deferredPrompt = null;
+          document.getElementById('btnInstalar').style.display = 'none';
+        });
+      }
+    }
+  </script>
+</body>
+
+</html>

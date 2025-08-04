@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redefinir Senha</title>
+
+    <!-- Bootstrap -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      body {
+        background: linear-gradient(135deg, #f0f2f5, #d9e4f5);
+      }
+
+      .reset-card {
+        max-width: 400px;
+        width: 90%;
+        padding: 2rem;
+        border-radius: 16px;
+        background-color: #fff;
+      }
+
+      .reset-card input {
+        height: 50px;
+        font-size: 1rem;
+      }
+
+      .reset-card button {
+        height: 50px;
+        font-size: 1rem;
+      }
+
+      .form-label {
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body class="d-flex justify-content-center align-items-center vh-100">
+    <div class="reset-card shadow-lg">
+      <h3 class="mb-4 text-center text-primary">
+        <i class="bi bi-key-fill"></i> Redefinir Senha
+      </h3>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="mb-3">
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST">
+        <div class="mb-3">
+          <label for="email" class="form-label">E-mail cadastrado</label>
+          <input
+            type="email"
+            name="email"
+            class="form-control"
+            placeholder="exemplo@dominio.com"
+            required
+          />
+        </div>
+
+        <div class="mb-3">
+          <label for="nova_senha" class="form-label">Nova senha</label>
+          <input
+            type="password"
+            name="nova_senha"
+            class="form-control"
+            placeholder="Digite a nova senha"
+            required
+          />
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 mb-2">
+          Atualizar senha
+        </button>
+
+        <a href="{{ url_for('auth.index' }}" class="btn btn-secondary w-100">
+          Voltar ao login
+        </a>
+      </form>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+    ></script>
+  </body>
+</html>

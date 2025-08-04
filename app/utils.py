@@ -1,4 +1,5 @@
 from .models import HistoricoAcao, db
+from app import db
 
 
 def registrar_acao(usuario_id, tipo_acao, entidade, entidade_id, observacao=""):

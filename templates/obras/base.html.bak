@@ -33,7 +33,7 @@
         <div>
           <a
             class="btn btn-outline-light btn-sm"
-            href="{{ url_for('auth.dashboard' }}"
+            href="{{ url_for('dashboard') }}"
             >Dashboard</a
           >
         </div>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,136 +8,111 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 </head>
+
 <body class="bg-light p-3">
   <div class="container bg-white p-4 rounded shadow">
     <h3 class="mb-4">📋 Formulário Unificado de Atendimento</h3>
 
-    <!-- Obra -->
-    <div class="mb-4">
-      {% if session.cargo == 'admin' %}
+    {% if comunicacao.usuario %}
+    <div class="alert alert-info small">
+      <i class="bi bi-person-badge"></i>
+      Comunicação registrada por: <strong>{{ comunicacao.usuario.nome }}</strong>
+    </div>
+    {% endif %}
+
+    <!-- ✅ Corrigido: agora o formulário POSTA para a própria rota (criar ou editar) -->
+    <form method="POST" 
+      action="{% if vistoria and vistoria.id %}{{ url_for('atendimento.atendimento_unificado', id=vistoria.id) }}{% else %}{{ url_for('atendimento.criar_atendimento') }}{% endif %}" 
+      enctype="multipart/form-data">
+
+      <div class="mb-4">
         <label class="form-label">Vincular a Obra</label>
-        <select name="obra_id" class="form-select" required>
+        <select name="obra_id" class="form-select" {% if session.cargo == 'vistoriador' %}disabled{% endif %} required>
           <option value="">Selecione uma obra...</option>
           {% for obra in obras %}
-            <option value="{{ obra.id }}" {% if vistoria.obra_id == obra.id %}selected{% endif %}>
-              {{ obra.nome }} - {{ obra.bairro }}
-            </option>
+          <option value="{{ obra.id }}" {% if vistoria.obra_id==obra.id %}selected{% endif %}>
+            {{ obra.nome }} - {{ obra.bairro }}
+          </option>
           {% endfor %}
         </select>
-      {% else %}
-        <input type="hidden" name="obra_id" value="{{ session.obra_id }}">
-        <div class="alert alert-secondary">
-          <i class="bi bi-info-circle"></i> Esta comunicação está vinculada à obra:
-          <strong>{{ vistoria.obra.nome if vistoria.obra else 'Obra não encontrada' }}</strong>
-        </div>
-      {% endif %}
-    </div>
+        <!-- Hidden input necessário se o campo estiver desabilitado -->
+        {% if session.cargo == 'vistoriador' %}
+        <input type="hidden" name="obra_id" value="{{ vistoria.obra_id }}">
+        {% endif %}
+      </div>
 
-    <!-- Flash messages -->
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="alert alert-success">{{ messages[0] }}</div>
-      {% endif %}
-    {% endwith %}
-
-    <form method="POST" enctype="multipart/form-data">
-
-      <!-- COMUNICADOR -->
-      {% if session.cargo in ['comunicador', 'admin'] %}
       <h5 class="mb-3">👤 Dados do Morador</h5>
       <div class="row">
-        <div class="col-md-6 mb-3"><label>Nome</label><input type="text" name="nome" class="form-control" value="{{ comunicacao.nome or '' }}" required></div>
-        <div class="col-md-6 mb-3"><label>Telefone</label><input type="tel" name="telefone" class="form-control" value="{{ comunicacao.telefone or '' }}"></div>
-        <div class="col-md-6 mb-3"><label>CPF</label><input type="text" name="cpf" class="form-control" value="{{ comunicacao.cpf or '' }}"></div>
+        <div class="col-md-6 mb-3">
+          <label>Nome</label>
+          <input type="text" name="nome" class="form-control" value="{{ comunicacao.nome or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %} required>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label>CPF / RG</label>
+          <input type="text" name="cpf" class="form-control" value="{{ comunicacao.cpf or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %}>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label>Telefone</label>
+          <input type="tel" name="telefone" class="form-control" value="{{ comunicacao.telefone or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %}>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label>Endereço (Rua / Av)</label>
+          <input type="text" name="endereco" class="form-control" value="{{ comunicacao.endereco or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %} required>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label>Número</label>
+          <input type="text" name="numero" class="form-control" value="{{ comunicacao.numero or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %}>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label>Bairro</label>
+          <input type="text" name="bairro" class="form-control" value="{{ comunicacao.bairro or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %}>
+        </div>
         <div class="col-md-6 mb-3">
           <label>Comunicado via</label>
-          <select name="comunicado" class="form-select">
-            <option value="impresso" {% if comunicacao.comunicado == 'impresso' %}selected{% endif %}>Impresso</option>
-            <option value="whatsapp" {% if comunicacao.comunicado == 'whatsapp' %}selected{% endif %}>WhatsApp</option>
-            <option value="telefone" {% if comunicacao.comunicado == 'telefone' %}selected{% endif %}>Telefone</option>
+          <select name="comunicado" class="form-select" {% if session.cargo=='vistoriador' %}disabled{% endif %}>
+            <option value="impresso" {% if comunicacao.comunicado=='impresso' %}selected{% endif %}>Impresso</option>
+            <option value="whatsapp" {% if comunicacao.comunicado=='whatsapp' %}selected{% endif %}>WhatsApp</option>
+            <option value="telefone" {% if comunicacao.comunicado=='telefone' %}selected{% endif %}>Telefone</option>
           </select>
         </div>
-        <div class="col-md-6 mb-3"><label>Endereço</label><input type="text" name="endereco" class="form-control" value="{{ comunicacao.endereco or '' }}" required></div>
-        <div class="col-md-6 mb-3"><label>Tipo de Imóvel</label><input type="text" name="tipo_imovel" class="form-control" value="{{ comunicacao.tipo_imovel or '' }}"></div>
-        <div class="col-md-6 mb-3"><label>Economia</label><input type="text" name="economia" class="form-control" value="{{ comunicacao.economia or '' }}"></div>
+        <div class="col-md-6 mb-3">
+          <label>Economia</label>
+          <input type="text" name="economia" class="form-control" value="{{ comunicacao.economia or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %}>
+        </div>
+        <div class="col-md-12 mb-3">
+          <label>Tipo de Imóvel</label><br>
+          {% set tipo = comunicacao.tipo_imovel %}
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="tipo_imovel" value="residencial" {% if tipo=='residencial' %}checked{% endif %} {% if session.cargo=='vistoriador' %}disabled{% endif %}>
+            <label class="form-check-label">Residencial</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="tipo_imovel" value="comercial" {% if tipo=='comercial' %}checked{% endif %} {% if session.cargo=='vistoriador' %}disabled{% endif %}>
+            <label class="form-check-label">Comercial</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="tipo_imovel" value="misto" {% if tipo=='misto' %}checked{% endif %} {% if session.cargo=='vistoriador' %}disabled{% endif %}>
+            <label class="form-check-label">Misto</label>
+          </div>
+        </div>
       </div>
-      {% endif %}
 
-      <!-- VISTORIADOR -->
       {% if session.cargo in ['vistoriador', 'admin'] %}
       <h5 class="mt-4 mb-3">🔍 Tentativas de Vistoria</h5>
       {% for i in range(1, 4) %}
-        <div class="row mb-2">
-          <div class="col-md-6">
-            <label>Data {{ i }}ª tentativa</label>
-            <input type="date" name="data_{{ i }}" class="form-control" value="{{ vistoria|getattr_safe('data_' ~ i|string) }}">
-          </div>
-          <div class="col-md-6">
-            <label>Hora {{ i }}ª tentativa</label>
-            <input type="time" name="hora_{{ i }}" class="form-control" value="{{ vistoria|getattr_safe('hora_' ~ i|string) }}">
-          </div>
+      <div class="row mb-2">
+        <div class="col-md-6">
+          <label>Data {{ i }}ª tentativa</label>
+          <input type="date" name="data_{{ i }}" class="form-control" value="{{ vistoria | getattr('data_' ~ i) or '' }}">
         </div>
+        <div class="col-md-6">
+          <label>Hora {{ i }}ª tentativa</label>
+          <input type="time" name="hora_{{ i }}" class="form-control" value="{{ vistoria | getattr('hora_' ~ i) or '' }}">
+        </div>
+      </div>
       {% endfor %}
 
-      <!-- 📍 Campos extras -->
-      <h5 class="mt-4 mb-3">🏘️ Dados do Imóvel</h5>
-      <div class="row">
-        <div class="col-md-4 mb-3"><label>Município</label><input type="text" name="municipio" class="form-control" value="{{ vistoria.municipio or '' }}"></div>
-        <div class="col-md-4 mb-3"><label>Complemento</label><input type="text" name="complemento" class="form-control" value="{{ vistoria.complemento or '' }}"></div>
-        <div class="col-md-4 mb-3"><label>Celular</label><input type="tel" name="celular" class="form-control" value="{{ vistoria.celular or '' }}"></div>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Soleira</label><br>
-        <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="soleira" value="positiva" {% if vistoria.soleira == 'positiva' %}checked{% endif %}> Positiva</div>
-        <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="soleira" value="negativa" {% if vistoria.soleira == 'negativa' %}checked{% endif %}> Negativa</div>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Calçada</label><br>
-        <div class="form-check"><input class="form-check-input" type="checkbox" name="calcada_cimento" value="1" {% if vistoria.calcada_cimento %}checked{% endif %}> Cimento</div>
-        <div class="form-check"><input class="form-check-input" type="checkbox" name="calcada_revestimento" value="1" {% if vistoria.calcada_revestimento %}checked{% endif %}> Revestimento</div>
-        <div class="form-check"><input class="form-check-input" type="checkbox" name="calcada_sem_acabamento" value="1" {% if vistoria.calcada_sem_acabamento %}checked{% endif %}> Sem acabamento</div>
-      </div>
-
-      <div class="row">
-        <div class="col-md-6 mb-3"><label>Responsável</label><input type="text" name="nome_responsavel" class="form-control" value="{{ vistoria.nome_responsavel or '' }}"></div>
-        <div class="col-md-6 mb-3"><label>CPF/RG</label><input type="text" name="cpf_responsavel" class="form-control" value="{{ vistoria.cpf_responsavel or '' }}"></div>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Tipo de Vínculo</label><br>
-        <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="tipo_vinculo" value="proprietario" {% if vistoria.tipo_vinculo == 'proprietario' %}checked{% endif %}> Proprietário</div>
-        <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="tipo_vinculo" value="inquilino" {% if vistoria.tipo_vinculo == 'inquilino' %}checked{% endif %}> Inquilino</div>
-        <div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="tipo_vinculo" value="responsavel" {% if vistoria.tipo_vinculo == 'responsavel' %}checked{% endif %}> Responsável</div>
-      </div>
-
-      <!-- Observações -->
-      <div class="mb-3">
-        <label>Observações</label>
-        <textarea name="observacoes" class="form-control">{{ vistoria.observacoes or '' }}</textarea>
-      </div>
-
-      <div class="form-check mb-3">
-        <input class="form-check-input" type="checkbox" name="finalizada" value="1" id="finalizada" {% if vistoria.finalizada %}checked{% endif %}>
-        <label class="form-check-label" for="finalizada">Vistoria finalizada</label>
-      </div>
-
-      <!-- 📸 Fotos já cadastradas -->
-      {% if vistoria.fotos %}
-      <h5 class="mt-4 mb-3">📸 Fotos já cadastradas</h5>
-      <div class="row mb-4">
-        {% for foto in vistoria.fotos %}
-        <div class="col-md-4 text-center mb-3">
-          <img src="{{ foto.url }}" alt="Foto {{ loop.index }}" class="img-thumbnail" style="max-height: 200px;">
-          <p class="small mt-2">{{ foto.descricao or 'Sem descrição' }}</p>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      <!-- 📷 Upload -->
-      <h5 class="mt-4">📷 Novas Fotos da Vistoria</h5>
+      <h5 class="mt-4 mb-3">📸 Fotos da Vistoria</h5>
       <div id="container-fotos">
         <div class="row mb-3">
           <div class="col-md-6"><input type="file" name="fotos[]" class="form-control"></div>
@@ -144,25 +120,45 @@
         </div>
       </div>
       <button type="button" class="btn btn-outline-primary btn-sm mb-3" onclick="adicionarFoto()">+ Adicionar outra foto</button>
-      <script>
-        function adicionarFoto() {
-          const container = document.getElementById("container-fotos");
-          const novo = document.createElement("div");
-          novo.classList.add("row", "mb-3");
-          novo.innerHTML = `
-            <div class="col-md-6"><input type="file" name="fotos[]" class="form-control"></div>
-            <div class="col-md-6"><input type="text" name="descricao_fotos[]" class="form-control" placeholder="Descrição da foto"></div>`;
-          container.appendChild(novo);
-        }
-      </script>
+
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" name="finalizada" value="1" id="finalizada" {% if vistoria.finalizada %}checked{% endif %}>
+        <label class="form-check-label" for="finalizada">Vistoria finalizada</label>
+      </div>
       {% endif %}
 
-      <!-- Botões -->
       <div class="d-flex justify-content-between mt-4">
-        <a href="{{ url_for('dashboard_unificado') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
-        <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> Salvar</button>
+        <a href="{{ url_for('atendimento.dashboard_unificado') }}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+        <button type="submit" class="btn btn-success">
+          <i class="bi bi-check-circle"></i> Salvar
+        </button>
       </div>
     </form>
   </div>
+
+  <script>
+    function adicionarFoto() {
+      const container = document.getElementById("container-fotos");
+      const novo = document.createElement("div");
+      novo.classList.add("row", "mb-3");
+      novo.innerHTML = `
+        <div class="col-md-6"><input type="file" name="fotos[]" class="form-control"></div>
+        <div class="col-md-6"><input type="text" name="descricao_fotos[]" class="form-control" placeholder="Descrição da foto"></div>`;
+      container.appendChild(novo);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const agora = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+      const dataBrasilia = new Date(agora);
+      for (let i = 1; i <= 3; i++) {
+        const dataInput = document.querySelector(`input[name="data_${i}"]`);
+        const horaInput = document.querySelector(`input[name="hora_${i}"]`);
+        if (dataInput && !dataInput.value) dataInput.value = dataBrasilia.toISOString().slice(0, 10);
+        if (horaInput && !horaInput.value) horaInput.value = dataBrasilia.toTimeString().slice(0, 5);
+      }
+    });
+  </script>
 </body>
 </html>
