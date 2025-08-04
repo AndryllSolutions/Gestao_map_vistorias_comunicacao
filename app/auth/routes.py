@@ -72,13 +72,13 @@ def form_redefinir_senha():
 
     return render_template('auth/redefinir_senha.html')
 
-
 @auth_bp.route('/usuarios/<int:user_id>/editar', methods=['GET', 'POST'])
 def editar_usuario(user_id):
     usuario = User.query.get_or_404(user_id)
     obras = Obra.query.all()
 
     if request.method == 'POST':
+        usuario.nome = request.form['nome']  # 👈 Corrigido aqui
         email = request.form.get('email').strip()
         senha = request.form.get('senha')
         cargo = request.form.get('cargo')
@@ -258,30 +258,24 @@ def excluir_usuario(user_id):
 
 @auth_bp.route('/historico')
 def historico():
-    if 'usuario' not in session:
-        return redirect(url_for('auth.login'))
+    if session.get('cargo') != 'admin':
+        flash('Apenas administradores podem acessar o histórico.', 'danger')
+        return redirect(url_for('auth.dashboard'))
 
-    user = User.query.filter_by(email=session['usuario']).first()
-    if not user or user.cargo != 'admin':
-        return 'Acesso negado', 403
+    query = HistoricoAcao.query.join(User).order_by(HistoricoAcao.data_hora.desc())
 
-    inicio = request.args.get('inicio')
-    fim = request.args.get('fim')
-    tipo = request.args.get('tipo')
-
-    query = HistoricoAcao.query
-
-    if inicio:
-        inicio_date = datetime.strptime(inicio, '%Y-%m-%d')
-        query = query.filter(HistoricoAcao.data_hora >= inicio_date)
-
-    if fim:
-        fim_date = datetime.strptime(fim, '%Y-%m-%d')
-        query = query.filter(HistoricoAcao.data_hora <= fim_date)
+    # Filtros opcionais
+    tipo = request.args.get("tipo")
+    inicio = request.args.get("inicio")
+    fim = request.args.get("fim")
 
     if tipo:
-        query = query.filter_by(tipo_acao=tipo)
+        query = query.filter(HistoricoAcao.tipo_acao == tipo)
+    if inicio:
+        query = query.filter(HistoricoAcao.data_hora >= datetime.strptime(inicio, "%Y-%m-%d"))
+    if fim:
+        query = query.filter(HistoricoAcao.data_hora <= datetime.strptime(fim, "%Y-%m-%d"))
 
-    acoes = query.order_by(HistoricoAcao.data_hora.desc()).all()
+    acoes = query.all()
 
-    return render_template('historico/historico.html', acoes=acoes)
+    return render_template("historico/historico.html", acoes=acoes)

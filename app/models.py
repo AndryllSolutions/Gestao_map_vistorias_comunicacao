@@ -56,6 +56,7 @@ class ComunicacaoObra(db.Model):
 
 
 
+
 class VistoriaImovel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     data_1 = db.Column(db.Date)        # ALTERADO
@@ -86,10 +87,8 @@ class VistoriaImovel(db.Model):
     obra_id = db.Column(db.Integer, db.ForeignKey('obra.id', name='fk_vistoria_obra'))
     obra = db.relationship("Obra", backref="vistorias")
     comunicacao_id = db.Column(db.Integer, db.ForeignKey('comunicacao_obra.id'))
-    comunicacao = db.relationship("ComunicacaoObra", backref="vistoria", uselist=False)
-    # dentro de VistoriaImovel
     comunicacao = db.relationship("ComunicacaoObra", back_populates="vistorias")
-    comunicacao_id = db.Column(db.Integer, db.ForeignKey('comunicacao_obra.id'))
+
 
 class AgendamentoVistoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
