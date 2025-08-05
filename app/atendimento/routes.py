@@ -1,6 +1,7 @@
 # app/atendimento/routes.py
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+
 from datetime import datetime, time
 from werkzeug.utils import secure_filename
 import os
@@ -225,37 +226,66 @@ def atendimento_unificado(id):
     if "user_id" not in session:
         return redirect(url_for("auth.login"))
 
+    cargo = session.get("cargo")
     vistoria = VistoriaImovel.query.get_or_404(id)
     comunicacao = vistoria.comunicacao
     obras = Obra.query.all()
 
     if request.method == "POST":
-        cargo = session.get("cargo")
-        if comunicacao and cargo in ["admin", "comunicador"]:
-            comunicacao.nome = request.form.get("nome")
-            comunicacao.cpf = request.form.get("cpf")
-            comunicacao.telefone = request.form.get("telefone")
-            comunicacao.endereco = request.form.get("endereco")
-            comunicacao.numero = request.form.get("numero")
-            comunicacao.bairro = request.form.get("bairro")
-            comunicacao.comunicado = request.form.get("comunicado")
-            comunicacao.economia = request.form.get("economia")
-            comunicacao.tipo_imovel = request.form.get("tipo_imovel")
-            comunicacao.obra_id = request.form.get("obra_id") or None
+        # ======================= DEBUG DOS DADOS =======================
+        print("====== DADOS RECEBIDOS DA VISTORIA ======")
+        print("Soleira:", request.form.get("soleira"))
+        print("Calçada:", request.form.get("calcada"))
+        print("Uso:", request.form.get("uso"))
+        print("Vínculo:", request.form.get("tipo_vinculo"))
+        print("Responsável info:", request.form.get("responsavel_info"))
+        print("Observação Geral:", request.form.get("observacao_geral"))
+        assinatura_debug = request.form.get("assinatura")
+        print("Assinatura (base64) começa com:", assinatura_debug[:30] if assinatura_debug else None)
+        print("Tentativas:")
+        for i in range(1, 4):
+            print(f"  data_{i}:", request.form.get(f"data_{i}"))
+            print(f"  hora_{i}:", request.form.get(f"hora_{i}"))
+        print("================================================")
+        # ===============================================================
 
-        vistoria.finalizada = True if request.form.get("finalizada") else False
+        # Atualiza comunicação (se permitido)
+        if comunicacao and cargo in ["admin", "comunicador"]:
+            comunicacao.nome = request.form.get("nome") or comunicacao.nome
+            comunicacao.cpf = request.form.get("cpf") or comunicacao.cpf
+            comunicacao.telefone = request.form.get("telefone") or comunicacao.telefone
+            comunicacao.endereco = request.form.get("endereco") or comunicacao.endereco
+            comunicacao.numero = request.form.get("numero") or comunicacao.numero
+            comunicacao.bairro = request.form.get("bairro") or comunicacao.bairro
+            comunicacao.comunicado = request.form.get("comunicado") or comunicacao.comunicado
+            comunicacao.economia = request.form.get("economia") or comunicacao.economia
+            comunicacao.tipo_imovel = request.form.get("tipo_imovel") or comunicacao.tipo_imovel
+            comunicacao.obra_id = request.form.get("obra_id") or comunicacao.obra_id
+
+        # Atualiza vistoria
+        vistoria.finalizada = bool(request.form.get("finalizada"))
         vistoria.obra_id = request.form.get("obra_id") or None
         vistoria.tipo_imovel = request.form.get("tipo_imovel")
         vistoria.soleira = request.form.get("soleira")
         vistoria.calcada = request.form.get("calcada")
-        vistoria.observacoes = request.form.get("observacoes")
-        vistoria.nome_responsavel = request.form.get("nome")
-        vistoria.cpf_responsavel = request.form.get("cpf")
-        vistoria.tipo_vinculo = request.form.get("vinculo")
-        vistoria.rua = request.form.get("endereco")
-        vistoria.numero = request.form.get("numero")
-        vistoria.bairro = request.form.get("bairro")
+        vistoria.uso = request.form.get("uso")
+        vistoria.tipo_vinculo = request.form.get("tipo_vinculo")
+        vistoria.responsavel_info = request.form.get("responsavel_info")
+        vistoria.observacao_geral = request.form.get("observacao_geral")
 
+        # Dados herdados da comunicação
+        vistoria.nome_responsavel = request.form.get("nome") or (comunicacao.nome if comunicacao else None)
+        vistoria.cpf_responsavel = request.form.get("cpf") or (comunicacao.cpf if comunicacao else None)
+        vistoria.rua = request.form.get("endereco") or (comunicacao.endereco if comunicacao else None)
+        vistoria.numero = request.form.get("numero") or (comunicacao.numero if comunicacao else None)
+        vistoria.bairro = request.form.get("bairro") or (comunicacao.bairro if comunicacao else None)
+
+        # Assinatura
+        assinatura_data = request.form.get("assinatura")
+        if assinatura_data and assinatura_data.startswith("data:image/png;base64,"):
+            vistoria.assinatura_base64 = assinatura_data
+
+        # Tentativas
         for i in range(1, 4):
             data = request.form.get(f"data_{i}")
             hora = request.form.get(f"hora_{i}")
@@ -272,28 +302,20 @@ def atendimento_unificado(id):
                     flash(f"⚠️ Hora inválida no campo hora_{i}.", "danger")
 
         vistoriador_assumiu = False
-        if not vistoria.usuario_id and session.get("cargo") == "vistoriador":
+        if not vistoria.usuario_id and cargo == "vistoriador":
             vistoria.usuario_id = session["user_id"]
             vistoriador_assumiu = True
 
         db.session.commit()
 
-        registrar_acao(
-            tipo_acao="edição",
-            entidade="VistoriaImovel",
-            entidade_id=vistoria.id,
-            usuario_id=session["user_id"],
-            observacao=f"Vistoria editada no atendimento #{vistoria.id}."
-        )
-
+        registrar_acao("edição", "VistoriaImovel", vistoria.id, session["user_id"],
+                       f"Vistoria editada no atendimento #{vistoria.id}.")
         if comunicacao:
-            registrar_acao(
-                tipo_acao="edição",
-                entidade="ComunicacaoObra",
-                entidade_id=comunicacao.id,
-                usuario_id=session["user_id"],
-                observacao=f"Comunicação editada no atendimento #{comunicacao.id}."
-            )
+            registrar_acao("edição", "ComunicacaoObra", comunicacao.id, session["user_id"],
+                           f"Comunicação editada no atendimento #{comunicacao.id}.")
+        if assinatura_data:
+            registrar_acao("assinatura", "VistoriaImovel", vistoria.id, session["user_id"],
+                           "Assinatura do morador adicionada ou atualizada.")
 
         flash("✅ Atendimento atualizado com sucesso!", "success")
         if vistoriador_assumiu:
@@ -301,10 +323,19 @@ def atendimento_unificado(id):
 
         return redirect(url_for("atendimento.dashboard_unificado"))
 
+    # GET → renderização do formulário
+    tentativas = {}
+    for i in range(1, 4):
+        tentativas[f"data_{i}"] = getattr(vistoria, f"data_{i}", None)
+        tentativas[f"hora_{i}"] = getattr(vistoria, f"hora_{i}", None)
+
     return render_template("atendimento/formulario.html",
                            vistoria=vistoria,
                            comunicacao=comunicacao,
-                           obras=obras)
+                           obras=obras,
+                           cargo=cargo,
+                           tentativas=tentativas)
+
 
 
 @atendimento_bp.route("/<int:id>/assumir", methods=["POST"])
@@ -584,3 +615,73 @@ def exportar_comunicacoes_excel():
         download_name="relatorio_comunicacoes.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
+
+@atendimento_bp.route("/atendimento/<int:id>/editar", methods=["GET", "POST"])
+def editar_atendimento(id):
+    comunicacao = ComunicacaoObra.query.get_or_404(id)
+    vistoria = VistoriaImovel.query.filter_by(comunicacao_id=id).first()
+    obras = Obra.query.all()
+
+    if request.method == "POST":
+        # 📞 DADOS DA COMUNICAÇÃO
+        comunicacao.nome = request.form.get("nome")
+        comunicacao.cpf = request.form.get("cpf")
+        comunicacao.telefone = request.form.get("telefone")
+        comunicacao.endereco = request.form.get("endereco")
+        comunicacao.bairro = request.form.get("bairro")
+        comunicacao.numero = request.form.get("numero")
+        comunicacao.comunicado = request.form.get("comunicado")
+        comunicacao.economia = request.form.get("economia")
+        comunicacao.tipo_imovel = request.form.get("tipo_imovel")
+        comunicacao.assinatura = request.form.get("assinatura")
+        comunicacao.obra_id = request.form.get("obra_id")
+
+        # 🏘️ DADOS DA VISTORIA
+        if not vistoria:
+            vistoria = VistoriaImovel(comunicacao_id=id)
+            db.session.add(vistoria)
+
+        vistoria.uso = request.form.get("uso")
+        vistoria.nome_responsavel = request.form.get("nome_responsavel")
+        vistoria.cpf_responsavel = request.form.get("cpf_responsavel")
+        vistoria.tipo_vinculo = request.form.get("tipo_vinculo")
+        vistoria.municipio = request.form.get("municipio")
+        vistoria.bairro = request.form.get("bairro")
+        vistoria.rua = request.form.get("rua")
+        vistoria.numero = request.form.get("numero_vistoria")  # para evitar conflito com comunicacao.numero
+        vistoria.complemento = request.form.get("complemento")
+        vistoria.celular = request.form.get("celular")
+        vistoria.tipo_imovel = request.form.get("tipo_imovel")
+        vistoria.soleira = request.form.get("soleira")
+        vistoria.calcada = request.form.get("calcada")
+        vistoria.observacoes = request.form.get("observacoes")
+        vistoria.assinatura_base64 = request.form.get("assinatura_base64")
+        vistoria.obra_id = request.form.get("obra_id")
+
+        # Tentativas
+        try:
+            vistoria.data_1 = parser.parse(request.form.get("data_1")).date() if request.form.get("data_1") else None
+            vistoria.hora_1 = parser.parse(request.form.get("hora_1")).time() if request.form.get("hora_1") else None
+            vistoria.data_2 = parser.parse(request.form.get("data_2")).date() if request.form.get("data_2") else None
+            vistoria.hora_2 = parser.parse(request.form.get("hora_2")).time() if request.form.get("hora_2") else None
+            vistoria.data_3 = parser.parse(request.form.get("data_3")).date() if request.form.get("data_3") else None
+            vistoria.hora_3 = parser.parse(request.form.get("hora_3")).time() if request.form.get("hora_3") else None
+        except Exception as e:
+            print("Erro ao processar tentativas:", e)
+
+        try:
+            db.session.commit()
+            flash("✅ Atendimento atualizado com sucesso!", "success")
+        except Exception as e:
+            db.session.rollback()
+            print("Erro ao salvar:", e)
+            flash("❌ Erro ao salvar alterações.", "danger")
+        
+
+        return redirect(url_for("atendimento.editar_atendimento", id=id))
+
+    return render_template("editar_atendimento.html",
+                           comunicacao=comunicacao,
+                           vistoria=vistoria,
+                           obras=obras)

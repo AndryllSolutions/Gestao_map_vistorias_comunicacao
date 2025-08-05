@@ -1,6 +1,7 @@
+{% import 'components/macros.html' as macros %}
+
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,187 +9,220 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 </head>
-
 <body class="bg-light p-3">
-  <div class="container bg-white p-4 rounded shadow">
-    <h3 class="mb-4">📋 Formulário Unificado de Atendimento</h3>
+<div class="container bg-white p-4 rounded shadow">
+  <h3 class="mb-4">📋 Formulário Unificado de Atendimento</h3>
 
-{% if comunicacao.usuario or vistoria.usuario %}
-<div class="alert alert-light border d-flex flex-column gap-1 small">
-  {% if comunicacao.usuario %}
+  {% if comunicacao.usuario or vistoria.usuario %}
+  <div class="alert alert-light border d-flex flex-column gap-1 small">
+    {% if comunicacao.usuario %}
     <div>
       <i class="bi bi-person-badge-fill text-primary"></i>
       <strong>Comunicador:</strong>
       <span class="badge bg-primary">{{ comunicacao.usuario.nome }}</span>
     </div>
-  {% endif %}
-  {% if vistoria.usuario %}
+    {% endif %}
+    {% if vistoria.usuario %}
     <div>
       <i class="bi bi-person-video3 text-warning"></i>
       <strong>Vistoriador:</strong>
       <span class="badge bg-warning text-dark">{{ vistoria.usuario.nome }}</span>
     </div>
+    {% endif %}
+  </div>
   {% endif %}
-</div>
-{% endif %}
-{% if session.cargo == 'vistoriador' and vistoria and not vistoria.usuario %}
+
+  {% if session.cargo == 'vistoriador' and vistoria and not vistoria.usuario %}
   <form method="POST" action="{{ url_for('atendimento.assumir_vistoria', id=vistoria.id) }}" class="mb-3">
     <button type="submit" class="btn btn-outline-warning w-100">
       <i class="bi bi-person-plus"></i> 📌 Assumir esta Vistoria
     </button>
   </form>
-{% endif %}
-    <!-- ✅ Corrigido: agora o formulário POSTA para a própria rota (criar ou editar) -->
-    <form method="POST" 
-      action="{% if vistoria and vistoria.id %}{{ url_for('atendimento.atendimento_unificado', id=vistoria.id) }}{% else %}{{ url_for('atendimento.criar_atendimento') }}{% endif %}" 
-      enctype="multipart/form-data">
+  {% endif %}
 
-      <div class="mb-4">
-        <label class="form-label">Vincular a Obra</label>
-        <select name="obra_id" class="form-select" {% if session.cargo == 'vistoriador' %}disabled{% endif %} required>
-          <option value="">Selecione uma obra...</option>
-          {% for obra in obras %}
-          <option value="{{ obra.id }}" {% if vistoria.obra_id==obra.id %}selected{% endif %}>
-            {{ obra.nome }} - {{ obra.bairro }}
-          </option>
-          {% endfor %}
-        </select>
-        <!-- Hidden input necessário se o campo estiver desabilitado -->
-        {% if session.cargo == 'vistoriador' and vistoria.obra_id %}
-  <input type="hidden" name="obra_id" value="{{ vistoria.obra_id }}">
-{% endif %}
+  <form method="POST"
+        action="{% if vistoria and vistoria.id %}{{ url_for('atendimento.atendimento_unificado', id=vistoria.id) }}{% else %}{{ url_for('atendimento.criar_atendimento') }}{% endif %}"
+        enctype="multipart/form-data"
+        autocomplete="off">
 
-      </div>
-
-      <h5 class="mb-3">👤 Dados do Morador</h5>
-      <div class="row">
-        <div class="col-md-6 mb-3">
-          <label>Nome</label>
-          <input type="text" name="nome" class="form-control" value="{{ comunicacao.nome or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %} required>
-        </div>
-        <div class="col-md-6 mb-3">
-          <label>CPF / RG</label>
-          <input type="text" name="cpf" class="form-control" value="{{ comunicacao.cpf or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %}>
-        </div>
-        <div class="col-md-6 mb-3">
-          <label>Telefone</label>
-          <input type="tel" name="telefone" class="form-control" value="{{ comunicacao.telefone or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %}>
-        </div>
-        <div class="col-md-6 mb-3">
-          <label>Endereço (Rua / Av)</label>
-          <input type="text" name="endereco" class="form-control" value="{{ comunicacao.endereco or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %} required>
-        </div>
-        <div class="col-md-3 mb-3">
-          <label>Número</label>
-          <input type="text" name="numero" class="form-control" value="{{ comunicacao.numero or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %}>
-        </div>
-        <div class="col-md-3 mb-3">
-          <label>Bairro</label>
-          <input type="text" name="bairro" class="form-control" value="{{ comunicacao.bairro or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %}>
-        </div>
-        <div class="col-md-6 mb-3">
-          <label>Comunicado via</label>
-          <select name="comunicado" class="form-select" {% if session.cargo=='vistoriador' %}disabled{% endif %}>
-            <option value="impresso" {% if comunicacao.comunicado=='impresso' %}selected{% endif %}>Impresso</option>
-            <option value="whatsapp" {% if comunicacao.comunicado=='whatsapp' %}selected{% endif %}>WhatsApp</option>
-            <option value="telefone" {% if comunicacao.comunicado=='telefone' %}selected{% endif %}>Telefone</option>
-          </select>
-        </div>
-        <div class="col-md-6 mb-3">
-          <label>Economia</label>
-          <input type="text" name="economia" class="form-control" value="{{ comunicacao.economia or '' }}" {% if session.cargo=='vistoriador' %}readonly{% endif %}>
-        </div>
-        <div class="col-md-12 mb-3">
-          <label>Tipo de Imóvel</label><br>
-          {% set tipo = comunicacao.tipo_imovel %}
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="tipo_imovel" value="residencial" {% if tipo=='residencial' %}checked{% endif %} {% if session.cargo=='vistoriador' %}disabled{% endif %}>
-            <label class="form-check-label">Residencial</label>
-          </div>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="tipo_imovel" value="comercial" {% if tipo=='comercial' %}checked{% endif %} {% if session.cargo=='vistoriador' %}disabled{% endif %}>
-            <label class="form-check-label">Comercial</label>
-          </div>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="tipo_imovel" value="misto" {% if tipo=='misto' %}checked{% endif %} {% if session.cargo=='vistoriador' %}disabled{% endif %}>
-            <label class="form-check-label">Misto</label>
-          </div>
-        </div>
-      </div>
-
-      {% if session.cargo in ['vistoriador', 'admin'] %}
-      <h5 class="mt-4 mb-3">🔍 Tentativas de Vistoria</h5>
-      {% for i in range(1, 4) %}
-      <div class="row mb-2">
-        <div class="col-md-6">
-          <label>Data {{ i }}ª tentativa</label>
-          <input type="date" name="data_{{ i }}" class="form-control" value="{{ vistoria | getattr('data_' ~ i) or '' }}">
-        </div>
-        <div class="col-md-6">
-          <label>Hora {{ i }}ª tentativa</label>
-          <input type="time" name="hora_{{ i }}" class="form-control" value="{{ vistoria | getattr('hora_' ~ i) or '' }}">
-        </div>
-      </div>
-      {% endfor %}
-
-      <h5 class="mt-4 mb-3">📸 Fotos da Vistoria</h5>
-      <div id="container-fotos">
-        <div class="row mb-3">
-          <div class="col-md-6"><input type="file" name="fotos[]" class="form-control"></div>
-          <div class="col-md-6"><input type="text" name="descricao_fotos[]" class="form-control" placeholder="Descrição da foto"></div>
-        </div>
-      </div>
-      <button type="button" class="btn btn-outline-primary btn-sm mb-3" onclick="adicionarFoto()">+ Adicionar outra foto</button>
-
-      <div class="form-check mb-3">
-        <input class="form-check-input" type="checkbox" name="finalizada" value="1" id="finalizada" {% if vistoria.finalizada %}checked{% endif %}>
-        <label class="form-check-label" for="finalizada">Vistoria finalizada</label>
-      </div>
+    <!-- Obra -->
+    <div class="mb-4">
+      <label for="obra_id" class="form-label">Vincular a Obra</label>
+      <select name="obra_id" id="obra_id" class="form-select" {% if session.cargo == 'vistoriador' %}disabled{% endif %} required>
+        <option value="">Selecione uma obra...</option>
+        {% for obra in obras %}
+        <option value="{{ obra.id }}" {% if vistoria.obra_id == obra.id %}selected{% endif %}>
+          {{ obra.nome }} - {{ obra.bairro }}
+        </option>
+        {% endfor %}
+      </select>
+      {% if session.cargo == 'vistoriador' and vistoria.obra_id %}
+      <input type="hidden" name="obra_id" value="{{ vistoria.obra_id }}">
       {% endif %}
+    </div>
 
-      <div class="d-flex justify-content-between mt-4">
-        <a href="{{ url_for('atendimento.dashboard_unificado') }}" class="btn btn-outline-secondary">
-          <i class="bi bi-arrow-left"></i> Voltar
-        </a>
-        {% if session.cargo in ['admin', 'vistoriador'] %}
+    <!-- Dados do Morador -->
+    <!-- COMUNICAÇÃO - DADOS DO MORADOR -->
+<h5 class="mb-3"><i class="bi bi-person-fill"></i> Dados do Morador</h5>
+<div class="row">
+  <div class="col-md-6 mb-3">
+    <label for="nome">Nome</label>
+    {{ macros.input_readonly_com_hidden('nome', vistoria.nome_responsavel or comunicacao.nome or '', session.cargo == 'vistoriador') }}
+  </div>
+  <div class="col-md-6 mb-3">
+    <label for="cpf">CPF / RG</label>
+    {{ macros.input_readonly_com_hidden('cpf', vistoria.cpf_responsavel or comunicacao.cpf or '', session.cargo == 'vistoriador') }}
+  </div>
+  <div class="col-md-6 mb-3">
+    <label for="telefone">Telefone</label>
+    {{ macros.input_readonly_com_hidden('telefone', comunicacao.telefone or '', session.cargo == 'vistoriador') }}
+  </div>
+  <div class="col-md-6 mb-3">
+    <label for="endereco">Endereço (Rua / Av)</label>
+    {{ macros.input_readonly_com_hidden('endereco', vistoria.rua or comunicacao.endereco or '', session.cargo == 'vistoriador') }}
+  </div>
+  <div class="col-md-3 mb-3">
+    <label for="numero">Número</label>
+    {{ macros.input_readonly_com_hidden('numero', vistoria.numero or comunicacao.numero or '', session.cargo == 'vistoriador') }}
+  </div>
+  <div class="col-md-3 mb-3">
+    <label for="bairro">Bairro</label>
+    {{ macros.input_readonly_com_hidden('bairro', vistoria.bairro or comunicacao.bairro or '', session.cargo == 'vistoriador') }}
+  </div>
+  <div class="col-md-6 mb-3">
+    <label for="comunicado">Comunicado via</label>
+    {% if session.cargo == 'vistoriador' %}
+      {{ macros.input_readonly_com_hidden('comunicado', comunicacao.comunicado or '', True) }}
+    {% else %}
+      <select name="comunicado" class="form-select" id="comunicado">
+        <option value="impresso" {% if comunicacao.comunicado == 'impresso' %}selected{% endif %}>Impresso</option>
+        <option value="whatsapp" {% if comunicacao.comunicado == 'whatsapp' %}selected{% endif %}>WhatsApp</option>
+        <option value="telefone" {% if comunicacao.comunicado == 'telefone' %}selected{% endif %}>Telefone</option>
+      </select>
+    {% endif %}
+  </div>
+  <div class="col-md-6 mb-3">
+    <label for="economia">Economia</label>
+    {{ macros.input_readonly_com_hidden('economia', comunicacao.economia or '', session.cargo == 'vistoriador') }}
+  </div>
+</div>
+
+{% if session.cargo in ['admin', 'vistoriador'] %}
+<!-- VISTORIA - TENTATIVAS -->
+<h5 class="mt-4 mb-3">📅 Tentativas de Vistoria</h5>
+<div class="row">
+  {% for i in range(1, 4) %}
+  <div class="col-md-3 mb-3">
+    <label for="data_{{ i }}">Tentativa {{ i }} - Data</label>
+<input type="date" class="form-control" name="data_{{ i }}" id="data_{{ i }}" value="{{ vistoria | attr('data_' ~ i) or '' }}">
+
+  </div>
+  <div class="col-md-3 mb-3">
+    <label for="hora_{{ i }}">Tentativa {{ i }} - Hora</label>
+<input type="time" class="form-control" name="hora_{{ i }}" id="hora_{{ i }}" value="{{ vistoria | attr('hora_' ~ i) or '' }}">
+  </div>
+  {% endfor %}
+</div>
+
+<!-- VISTORIA - RESPONSÁVEL -->
+<h5 class="mb-3">👤 Responsável pelas Informações</h5>
+<div class="row">
+  <div class="col-md-6 mb-3">
+    <label for="vinculo">Vínculo com o imóvel</label>
+    <input type="text" name="vinculo" id="vinculo" class="form-control" value="{{ vistoria.tipo_vinculo or '' }}">
+
+  </div>
+  <div class="col-md-6 mb-3">
+    <label>Tipo de responsável</label><br>
+    {% set r = vistoria.responsavel_info %}
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" name="responsavel_info" value="proprietario" {% if r == 'proprietario' %}checked{% endif %}>
+      <label class="form-check-label">Proprietário</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" name="responsavel_info" value="inquilino" {% if r == 'inquilino' %}checked{% endif %}>
+      <label class="form-check-label">Inquilino</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" name="responsavel_info" value="outro" {% if r == 'outro' %}checked{% endif %}>
+      <label class="form-check-label">Outro</label>
+    </div>
+  </div>
+</div>
+
+<!-- VISTORIA - SITUAÇÃO DO IMÓVEL -->
+<h5 class="mt-4 mb-3">🏘️ Situação do Imóvel</h5>
+<div class="row">
+  <div class="col-md-6 mb-3">
+    <label class="form-label">Soleira</label><br>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" name="soleira" value="positiva" {% if vistoria.soleira == 'positiva' %}checked{% endif %}>
+      <label class="form-check-label">Positiva</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" name="soleira" value="negativa" {% if vistoria.soleira == 'negativa' %}checked{% endif %}>
+      <label class="form-check-label">Negativa</label>
+    </div>
+  </div>
+  <div class="col-md-6 mb-3">
+    <label class="form-label">Tipo de Calçada</label><br>
+    {% for valor, rotulo in [('cimento', 'Cimento'), ('revestimento', 'Revestimento'), ('sem_acabamento', 'Sem acabamento')] %}
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" name="calcada" value="{{ valor }}" {% if vistoria.calcada == valor %}checked{% endif %}>
+      <label class="form-check-label">{{ rotulo }}</label>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+<!-- Tipo de Uso do Imóvel -->
+<div class="mb-3">
+  <label class="form-label">Uso do Imóvel</label><br>
+  {% set uso = vistoria.uso or '' %}
+  <div class="form-check form-check-inline">
+    <input class="form-check-input" type="radio" name="uso" id="uso_residencial" value="residencial" {% if uso == 'residencial' %}checked{% endif %}>
+    <label class="form-check-label" for="uso_residencial">Residencial</label>
+  </div>
+  <div class="form-check form-check-inline">
+    <input class="form-check-input" type="radio" name="uso" id="uso_comercial" value="comercial" {% if uso == 'comercial' %}checked{% endif %}>
+    <label class="form-check-label" for="uso_comercial">Comercial</label>
+  </div>
+  <div class="form-check form-check-inline">
+    <input class="form-check-input" type="radio" name="uso" id="uso_misto" value="misto" {% if uso == 'misto' %}checked{% endif %}>
+    <label class="form-check-label" for="uso_misto">Misto</label>
+  </div>
+</div>
+
+<!-- VISTORIA - OBSERVAÇÕES -->
+<div class="mb-3">
+  <label for="observacoes">📝 Observações Gerais</label>
+  <textarea name="observacoes" id="observacoes" class="form-control" rows="3">{{ vistoria.observacoes or '' }}</textarea>
+</div>
+
+<!-- VISTORIA - ASSINATURA -->
 <h5 class="mt-4 mb-3">✍️ Assinatura do Morador</h5>
 <div class="mb-3">
   <canvas id="signature" width="400" height="150" class="border border-dark rounded w-100" style="touch-action: none;"></canvas>
   <input type="hidden" name="assinatura" id="assinatura">
+  <small class="form-text text-muted">Utilize o dedo ou mouse para assinar.</small>
 </div>
 <div class="mb-3 d-flex gap-2">
   <button type="button" class="btn btn-outline-secondary btn-sm" onclick="limparAssinatura()">Limpar</button>
 </div>
 {% endif %}
-       <button type="submit" class="btn btn-success" onclick="this.disabled=true; this.innerHTML='Salvando...'; this.form.submit();">
-
-  <i class="bi bi-check-circle"></i> Salvar
-</button>
-      </div>
-    </form>
-  </div>
-
-  <script>
-    function adicionarFoto() {
-      const container = document.getElementById("container-fotos");
-      const novo = document.createElement("div");
-      novo.classList.add("row", "mb-3");
-      novo.innerHTML = `
-        <div class="col-md-6"><input type="file" name="fotos[]" class="form-control"></div>
-        <div class="col-md-6"><input type="text" name="descricao_fotos[]" class="form-control" placeholder="Descrição da foto"></div>`;
-      container.appendChild(novo);
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const agora = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-      const dataBrasilia = new Date(agora);
-      for (let i = 1; i <= 3; i++) {
-        const dataInput = document.querySelector(`input[name="data_${i}"]`);
-        const horaInput = document.querySelector(`input[name="hora_${i}"]`);
-        if (dataInput && !dataInput.value) dataInput.value = dataBrasilia.toISOString().slice(0, 10);
-        if (horaInput && !horaInput.value) horaInput.value = dataBrasilia.toTimeString().slice(0, 5);
-      }
-    });
-  </script>
+<div class="d-flex justify-content-between mt-4">
+  <a href="{{ url_for('atendimento.dashboard_unificado') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Voltar
+  </a>
+  <button type="submit" class="btn btn-success" onclick="this.disabled=true; this.innerHTML='Salvando...'; this.form.submit();">
+    <i class="bi bi-check-circle"></i> Salvar
+  </button>
+</div>
+<script>
+function limparAssinatura() {
+  const canvas = document.getElementById("signature");
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+</script>
 </body>
 </html>

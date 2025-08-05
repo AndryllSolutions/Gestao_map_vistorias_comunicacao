@@ -59,12 +59,12 @@ class ComunicacaoObra(db.Model):
 
 class VistoriaImovel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    data_1 = db.Column(db.Date)        # ALTERADO
-    hora_1 = db.Column(db.Time)        # ALTERADO
-    data_2 = db.Column(db.Date)        # ALTERADO
-    hora_2 = db.Column(db.Time)        # ALTERADO
-    data_3 = db.Column(db.Date)        # ALTERADO
-    hora_3 = db.Column(db.Time)        # ALTERADO
+    data_1 = db.Column(db.Date)
+    hora_1 = db.Column(db.Time)
+    data_2 = db.Column(db.Date)
+    hora_2 = db.Column(db.Time)
+    data_3 = db.Column(db.Date)
+    hora_3 = db.Column(db.Time)
     nome_responsavel = db.Column(db.String(100)) 
     cpf_responsavel = db.Column(db.String(50))
     tipo_vinculo = db.Column(db.String(30))
@@ -78,16 +78,20 @@ class VistoriaImovel(db.Model):
     soleira = db.Column(db.String(50))
     calcada = db.Column(db.String(100))
     observacoes = db.Column(db.Text)
-    fotos = db.relationship("FotoVistoria", back_populates="vistoria", cascade="all, delete-orphan")
+    uso = db.Column(db.String(20))  # residencial, comercial, misto
+    assinatura_base64 = db.Column(db.Text)  # ✅ novo campo
     finalizada = db.Column(db.Boolean, default=False)
+
+    fotos = db.relationship("FotoVistoria", back_populates="vistoria", cascade="all, delete-orphan")
     usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     usuario = db.relationship('User', backref='vistorias')
 
-
     obra_id = db.Column(db.Integer, db.ForeignKey('obra.id', name='fk_vistoria_obra'))
     obra = db.relationship("Obra", backref="vistorias")
+
     comunicacao_id = db.Column(db.Integer, db.ForeignKey('comunicacao_obra.id'))
     comunicacao = db.relationship("ComunicacaoObra", back_populates="vistorias")
+
 
 
 class AgendamentoVistoria(db.Model):

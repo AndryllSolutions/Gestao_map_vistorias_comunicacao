@@ -1,0 +1,9 @@
+{% macro input_readonly_com_hidden(name, value, readonly=False) %}
+  {% set safe_value = value if value is not none and value is not sameas false else '' %}
+  {% if readonly %}
+    <input type="text" class="form-control" value="{{ safe_value }}" readonly disabled>
+    <input type="hidden" name="{{ name }}" value="{{ safe_value }}">
+  {% else %}
+    <input type="text" class="form-control" name="{{ name }}" id="{{ name }}" value="{{ safe_value }}">
+  {% endif %}
+{% endmacro %}

@@ -108,6 +108,9 @@
     </div>
 
   {% if registros %}
+
+<!-- substitua a parte da tabela pelo trecho abaixo -->
+
 <div class="table-responsive">
   <table class="table table-hover align-middle text-center" id="tabelaRegistros">
     <thead class="table-light">
@@ -127,34 +130,42 @@
     </thead>
     <tbody>
       {% for r in registros %}
-      <tr>
+      <tr class="{% if not r.finalizada %}table-warning{% endif %}">
         <td>{{ r.id }}</td>
         <td>{{ r.nome or 'Sem nome' }}</td>
 
         <!-- Comunicador -->
         <td>
-          {% if r.comunicador and "(Admin)" in r.comunicador %}
-          <span class="badge bg-dark">
-            {{ r.comunicador.replace(" (Admin)", "") }} <i class="bi bi-shield-lock-fill"></i>
-          </span>
+          {% if r.comunicador %}
+            {% if "(Admin)" in r.comunicador %}
+              <span class="badge bg-dark">
+                {{ r.comunicador.replace(" (Admin)", "") }} <i class="bi bi-shield-lock-fill"></i>
+              </span>
+            {% else %}
+              <span class="badge bg-warning text-dark">{{ r.comunicador }}</span>
+            {% endif %}
           {% else %}
-          <span class="badge bg-secondary">{{ r.comunicador or "—" }}</span>
+            <span class="text-muted fst-italic">—</span>
           {% endif %}
         </td>
 
         <!-- Vistoriador -->
         <td>
-          {% if r.vistoriador and "(Admin)" in r.vistoriador %}
-          <span class="badge bg-dark">
-            {{ r.vistoriador.replace(" (Admin)", "") }} <i class="bi bi-shield-lock-fill"></i>
-          </span>
+          {% if r.vistoriador %}
+            {% if "(Admin)" in r.vistoriador %}
+              <span class="badge bg-dark">
+                {{ r.vistoriador.replace(" (Admin)", "") }} <i class="bi bi-shield-lock-fill"></i>
+              </span>
+            {% else %}
+              <span class="badge bg-info text-dark">{{ r.vistoriador }}</span>
+            {% endif %}
           {% else %}
-          <span class="badge bg-info text-dark">{{ r.vistoriador or '—' }}</span>
+            <span class="text-muted fst-italic">Não assumida</span>
           {% endif %}
         </td>
 
         <!-- Rua -->
-        <td>{{ r.rua }}</td>
+        <td>{{ r.rua or '—' }}</td>
 
         <!-- Obra -->
         <td>{{ r.obra.nome if r.obra else '—' }}</td>
@@ -162,35 +173,39 @@
         <!-- Data -->
         <td>
           {% if r.data_envio %}
-          {{ r.data_envio.strftime('%d/%m/%Y %H:%M') }}
+            {{ r.data_envio.strftime('%d/%m/%Y %H:%M') }}
           {% else %}
-          —
+            —
           {% endif %}
         </td>
 
         <!-- Status -->
         <td>
           {% if r.finalizada %}
-          <span class="badge bg-success">Finalizada</span>
+            <span class="badge bg-success">Finalizada</span>
           {% else %}
-          <span class="badge bg-warning text-dark">Em andamento</span>
+            <span class="badge bg-warning text-dark">Em andamento</span>
           {% endif %}
         </td>
 
         <!-- Ações -->
         {% if session.cargo in ['admin', 'vistoriador'] %}
         <td>
-          <a href="{{ url_for('atendimento.atendimento_unificado', id=r.id) }}" class="btn btn-sm btn-primary">
-            <i class="bi bi-pencil-square"></i>
+          <a href="{{ url_for('atendimento.atendimento_unificado', id=r.id) }}" class="btn btn-sm btn-primary" title="Abrir Atendimento">
+            <i class="bi bi-eye"></i>
           </a>
-          {% if session.cargo in ['admin', 'vistoriador'] %}
-  <a href="{{ url_for('atendimento.gerar_laudo_vistoria', id=r.id) }}"class="btn btn-sm btn-outline-danger">
-    <i class="bi bi-file-earmark-pdf"></i> PDF
-  </a>
-  <a href="{{ url_for('atendimento.gerar_excel_vistoria', id=r.id) }}" class="btn btn-sm btn-outline-success">
-    <i class="bi bi-file-earmark-excel"></i> Excel
-  </a>
-{% endif %}
+
+          <a href="{{ url_for('atendimento.gerar_laudo_vistoria', id=r.id) }}" class="btn btn-sm btn-outline-danger" title="Gerar PDF">
+            <i class="bi bi-file-earmark-pdf"></i><span class="d-none d-md-inline"> PDF</span>
+          </a>
+
+          <a href="{{ url_for('atendimento.gerar_excel_vistoria', id=r.id) }}" class="btn btn-sm btn-outline-success" title="Exportar Excel">
+            <i class="bi bi-file-earmark-excel"></i><span class="d-none d-md-inline"> Excel</span>
+          </a>
+
+          <a href="{{ url_for('atendimento.editar_atendimento', id=r.id) }}" class="btn btn-sm btn-outline-primary" title="Editar Atendimento">
+            <i class="bi bi-pencil"></i><span class="d-none d-md-inline"> Editar</span>
+          </a>
         </td>
         {% endif %}
       </tr>
@@ -198,6 +213,8 @@
     </tbody>
   </table>
 </div>
+
+
 {% else %}
 <p class="text-muted text-center mt-4">Nenhum registro encontrado ainda.</p>
 {% endif %}
