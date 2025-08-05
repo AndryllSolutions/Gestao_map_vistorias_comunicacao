@@ -13,13 +13,31 @@
   <div class="container bg-white p-4 rounded shadow">
     <h3 class="mb-4">📋 Formulário Unificado de Atendimento</h3>
 
-    {% if comunicacao.usuario %}
-    <div class="alert alert-info small">
-      <i class="bi bi-person-badge"></i>
-      Comunicação registrada por: <strong>{{ comunicacao.usuario.nome }}</strong>
+{% if comunicacao.usuario or vistoria.usuario %}
+<div class="alert alert-light border d-flex flex-column gap-1 small">
+  {% if comunicacao.usuario %}
+    <div>
+      <i class="bi bi-person-badge-fill text-primary"></i>
+      <strong>Comunicador:</strong>
+      <span class="badge bg-primary">{{ comunicacao.usuario.nome }}</span>
     </div>
-    {% endif %}
-
+  {% endif %}
+  {% if vistoria.usuario %}
+    <div>
+      <i class="bi bi-person-video3 text-warning"></i>
+      <strong>Vistoriador:</strong>
+      <span class="badge bg-warning text-dark">{{ vistoria.usuario.nome }}</span>
+    </div>
+  {% endif %}
+</div>
+{% endif %}
+{% if session.cargo == 'vistoriador' and vistoria and not vistoria.usuario %}
+  <form method="POST" action="{{ url_for('atendimento.assumir_vistoria', id=vistoria.id) }}" class="mb-3">
+    <button type="submit" class="btn btn-outline-warning w-100">
+      <i class="bi bi-person-plus"></i> 📌 Assumir esta Vistoria
+    </button>
+  </form>
+{% endif %}
     <!-- ✅ Corrigido: agora o formulário POSTA para a própria rota (criar ou editar) -->
     <form method="POST" 
       action="{% if vistoria and vistoria.id %}{{ url_for('atendimento.atendimento_unificado', id=vistoria.id) }}{% else %}{{ url_for('atendimento.criar_atendimento') }}{% endif %}" 
@@ -36,9 +54,10 @@
           {% endfor %}
         </select>
         <!-- Hidden input necessário se o campo estiver desabilitado -->
-        {% if session.cargo == 'vistoriador' %}
-        <input type="hidden" name="obra_id" value="{{ vistoria.obra_id }}">
-        {% endif %}
+        {% if session.cargo == 'vistoriador' and vistoria.obra_id %}
+  <input type="hidden" name="obra_id" value="{{ vistoria.obra_id }}">
+{% endif %}
+
       </div>
 
       <h5 class="mb-3">👤 Dados do Morador</h5>
@@ -131,9 +150,20 @@
         <a href="{{ url_for('atendimento.dashboard_unificado') }}" class="btn btn-outline-secondary">
           <i class="bi bi-arrow-left"></i> Voltar
         </a>
-        <button type="submit" class="btn btn-success">
-          <i class="bi bi-check-circle"></i> Salvar
-        </button>
+        {% if session.cargo in ['admin', 'vistoriador'] %}
+<h5 class="mt-4 mb-3">✍️ Assinatura do Morador</h5>
+<div class="mb-3">
+  <canvas id="signature" width="400" height="150" class="border border-dark rounded w-100" style="touch-action: none;"></canvas>
+  <input type="hidden" name="assinatura" id="assinatura">
+</div>
+<div class="mb-3 d-flex gap-2">
+  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="limparAssinatura()">Limpar</button>
+</div>
+{% endif %}
+       <button type="submit" class="btn btn-success" onclick="this.disabled=true; this.innerHTML='Salvando...'; this.form.submit();">
+
+  <i class="bi bi-check-circle"></i> Salvar
+</button>
       </div>
     </form>
   </div>
