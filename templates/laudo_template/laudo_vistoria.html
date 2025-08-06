@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Laudo de Vistoria Cautelar</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 2cm;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      color: #000;
+      margin: 0;
+      padding: 0;
+    }
+
+    .page {
+      page-break-after: always;
+      padding: 2cm;
+    }
+
+    h1, h2 {
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 18px;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      font-size: 14px;
+      margin-top: 30px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 5px;
+    }
+
+    .campo {
+      margin-bottom: 8px;
+    }
+
+    .box {
+      background: #f2f2f2;
+      padding: 10px;
+      border: 1px solid #ccc;
+      font-size: 11px;
+    }
+
+    .assinaturas {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 100px;
+      text-align: center;
+    }
+
+    .assinaturas div {
+      width: 30%;
+    }
+
+    .assinaturas .linha {
+      border-top: 1px solid #000;
+      margin-top: 40px;
+      padding-top: 5px;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page">
+    <h1>LAUDO DE VISTORIA CAUTELAR</h1>
+
+    <h2>📍 Dados do Atendimento</h2>
+    <div class="campo"><strong>Data da Vistoria:</strong> {{ vistoria.data_1.strftime('%d/%m/%Y') if vistoria.data_1 else '—' }} às {{ vistoria.hora_1 if vistoria.hora_1 else '—' }}</div>
+    <div class="campo"><strong>Responsável pelas informações:</strong> {{ vistoria.nome_responsavel or comunicacao.nome or "—" }}</div>
+    <div class="campo"><strong>Vínculo com o imóvel:</strong> {{ vistoria.tipo_vinculo or "—" }}</div>
+    <div class="campo"><strong>Endereço:</strong> {{ comunicacao.endereco or "—" }}, {{ comunicacao.numero or "—" }} - {{ comunicacao.bairro or "—" }}, {{ vistoria.municipio or "—" }}</div>
+    <div class="campo"><strong>Telefone:</strong> {{ comunicacao.telefone or "—" }}</div>
+    <div class="campo"><strong>Tipo de Imóvel:</strong> {{ vistoria.tipo_imovel or comunicacao.tipo_imovel or "—" }}</div>
+    <div class="campo"><strong>Uso:</strong> {{ vistoria.uso or "—" }}</div>
+    <div class="campo"><strong>Soleira:</strong> {{ vistoria.soleira or "—" }}</div>
+    <div class="campo"><strong>Tipo de Calçada:</strong> {{ vistoria.calcada or "—" }}</div>
+
+    <h2>📅 Tentativas de Vistoria</h2>
+    <div class="campo">1ª Tentativa: {{ vistoria.data_1.strftime('%d/%m/%Y') if vistoria.data_1 else '—' }} às {{ vistoria.hora_1 or '—' }}</div>
+    <div class="campo">2ª Tentativa: {{ vistoria.segunda_tentativa.strftime('%d/%m/%Y %H:%M') if vistoria.segunda_tentativa else '—' }}</div>
+    <div class="campo">3ª Tentativa: {{ vistoria.terceira_tentativa.strftime('%d/%m/%Y %H:%M') if vistoria.terceira_tentativa else '—' }}</div>
+
+    <h2>📄 Observações</h2>
+    <div class="campo">{{ vistoria.observacoes or "—" }}</div>
+
+    <h2>📘 Norma Técnica</h2>
+    <div class="box">
+      ABNT NBR 12722:1992 – Discriminação de serviços para construção de edifícios.<br>
+      Item 4.1.10.3: Toda vez que for necessário resguardar interesses de propriedades vizinhas ou de uso público, é obrigatória a realização da vistoria cautelar...
+    </div>
+
+    <h2>🔒 LGPD</h2>
+    <div class="box">
+      Em conformidade com a Lei Geral de Proteção de Dados (LGPD), ao realizarmos vistoria cautelar em seu imóvel, coletaremos informações estritamente necessárias para este fim. Esses dados serão mantidos em sigilo e utilizados exclusivamente para emissão do presente laudo técnico.
+    </div>
+  </div>
+
+  <!-- Página de assinaturas -->
+  <hr style="margin-top: 40px; margin-bottom: 20px;">
+
+<table style="width: 100%; font-size: 12px;">
+  <tr>
+    <!-- Assinatura do morador -->
+    
+
+    <!-- Assinatura do engenheiro -->
+    <td style="width: 33%; text-align: center;">
+      <div style="height: 80px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
+      <br>
+      <strong>Engenheiro Responsável</strong><br>
+      Fulano de Tal<br>
+      CREA: 0000000000-D
+    </td>
+
+    <!-- Assinatura do vistoriador -->
+    <td style="width: 33%; text-align: center;">
+      <div style="height: 80px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
+      <br>
+      <strong>Vistoriador</strong><br>
+      {{ vistoria.usuario.nome if vistoria.usuario else '________________' }}<br>
+      RG: {{ vistoria.usuario.rg if vistoria.usuario and vistoria.usuario.rg else '___________' }}
+    </td>
+    
+    <td style="width: 33%; text-align: center;">
+      {% if vistoria.assinatura_base64 %}
+        <img src="{{ vistoria.assinatura_base64 }}" alt="Assinatura do Morador" style="max-width: 200px; border: 1px solid #000; padding: 4px;">
+      {% else %}
+        <div style="height: 80px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
+      {% endif %}
+      <br>
+      <strong>Morador</strong><br>
+      {{ comunicacao.nome or '________________' }}<br>
+      CPF: {{ comunicacao.cpf or '___._ _ _._ _ _-__' }}
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>

@@ -128,9 +128,22 @@
 <h5 class="mb-3">👤 Responsável pelas Informações</h5>
 <div class="row">
   <div class="col-md-6 mb-3">
-    <label for="vinculo">Vínculo com o imóvel</label>
-    <input type="text" name="vinculo" id="vinculo" class="form-control" value="{{ vistoria.tipo_vinculo or '' }}">
+  <label for="vinculo_select">Vínculo com o imóvel</label>
 
+    <select name="vinculo" id="vinculo_select" class="form-select" onchange="mostrarOutroCampo()">
+  <option value="">-- Selecione --</option>
+  <option value="Proprietário" {% if vistoria.tipo_vinculo == 'Proprietário' %}selected{% endif %}>Proprietário</option>
+  <option value="Inquilino" {% if vistoria.tipo_vinculo == 'Inquilino' %}selected{% endif %}>Inquilino</option>
+  <option value="Responsável legal" {% if vistoria.tipo_vinculo == 'Responsável legal' %}selected{% endif %}>Responsável legal</option>
+  <option value="Representante autorizado" {% if vistoria.tipo_vinculo == 'Representante autorizado' %}selected{% endif %}>Representante autorizado</option>
+  <option value="Síndico" {% if vistoria.tipo_vinculo == 'Síndico' %}selected{% endif %}>Síndico</option>
+  <option value="Outro" {% if vistoria.tipo_vinculo and vistoria.tipo_vinculo not in ['Proprietário', 'Inquilino', 'Responsável legal', 'Representante autorizado', 'Síndico'] %}selected{% endif %}>Outro</option>
+</select>
+
+<!-- Campo oculto para "Outro" -->
+<div id="vinculo_outro_div" class="mt-2" style="display: none;">
+  <input type="text" class="form-control" name="vinculo_outro" id="vinculo_outro" placeholder="Especifique o vínculo" value="{% if vistoria.tipo_vinculo and vistoria.tipo_vinculo not in ['Proprietário', 'Inquilino', 'Responsável legal', 'Representante autorizado', 'Síndico'] %}{{ vistoria.tipo_vinculo }}{% endif %}">
+</div>
   </div>
   <div class="col-md-6 mb-3">
     <label>Tipo de responsável</label><br>
@@ -224,5 +237,23 @@ function limparAssinatura() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 </script>
+<script>
+function mostrarOutroCampo() {
+  const select = document.getElementById("vinculo_select");
+  const outroDiv = document.getElementById("vinculo_outro_div");
+
+  if (select.value === "Outro") {
+    outroDiv.style.display = "block";
+  } else {
+    outroDiv.style.display = "none";
+  }
+}
+
+// Garante exibição correta ao recarregar a página com valor preenchido
+document.addEventListener("DOMContentLoaded", function () {
+  mostrarOutroCampo();
+});
+</script>
+
 </body>
 </html>

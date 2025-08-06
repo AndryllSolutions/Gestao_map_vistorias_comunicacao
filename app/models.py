@@ -7,14 +7,13 @@ from app import db
 from .extensions import db
 
 
-
-
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=True)  # <-- temporariamente
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
     cargo = db.Column(db.String(50), default="usuario")
+    rg = db.Column(db.String(20), nullable=True)  # ✅ Adicionado aqui
 
     obra_id = db.Column(db.Integer, db.ForeignKey('obra.id'))
     obra = db.relationship('Obra', backref='usuarios')

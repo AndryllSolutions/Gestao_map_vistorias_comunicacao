@@ -20,14 +20,20 @@ migrate = Migrate()
 def register_jinja_filters(app):
     @app.template_filter('getattr')
     def jinja_getattr(obj, attr_name):
-        return getattr(obj, attr_name, "")
+        return getattr(obj, attr_name, None)
+
+    @app.template_filter('datetimeformat')
+    def datetimeformat(value, format='%Y-%m-%d'):
+        if value:
+            return value.strftime(format)
+        return ''
 
 def create_app() -> Flask:
     app = Flask(__name__, static_folder='../static', template_folder='../templates')
 
     # Configurações
     app.secret_key = "Aninha_pitukinha"
-    app.permanent_session_lifetime = timedelta(minutes=30)
+    app.permanent_session_lifetime = timedelta(hours=6)
     app.config['SESSION_COOKIE_SAMESITE'] = 'None'
     app.config['SESSION_COOKIE_SECURE'] = True
 

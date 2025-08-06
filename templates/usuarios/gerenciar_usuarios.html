@@ -51,22 +51,31 @@
   </button>
 
   <h2 class="mb-4">Gerenciar Usuários</h2>
-<div class="mb-3">
-  <input type="text" id="filtroUsuarios" class="form-control" placeholder="🔍 Filtrar por email, cargo ou obra..." onkeyup="filtrarUsuarios()">
-</div>
-<div class="row mb-3">
-  <div class="col-md-6 mb-2">
-    <input type="text" id="filtroTexto" class="form-control" placeholder="🔍 Buscar por nome, email, cargo..." onkeyup="filtrarUsuarios()">
+
+
+<form class="row g-2 align-items-center mb-4">
+  <!-- Campo de texto com ícone -->
+  <div class="col-12 col-md-6">
+    <div class="input-group">
+      <span class="input-group-text"><i class="bi bi-search"></i></span>
+      <input type="text" id="filtroTexto" class="form-control" placeholder="Buscar por nome, email ou cargo..." onkeyup="filtrarUsuarios()">
+    </div>
   </div>
-  <div class="col-md-6">
-    <select id="filtroObra" class="form-select" onchange="filtrarUsuarios()">
-      <option value="">🔍 Filtrar por Obra</option>
-      {% for obra in obras %}
-        <option value="{{ obra.nome|lower }}">{{ obra.nome }}</option>
-      {% endfor %}
-    </select>
+
+  <!-- Select de obra com ícone -->
+  <div class="col-12 col-md-6">
+    <div class="input-group">
+      <span class="input-group-text"><i class="bi bi-building"></i></span>
+      <select id="filtroObra" class="form-select" onchange="filtrarUsuarios()">
+        <option value="">Filtrar por obra</option>
+        {% for obra in obras %}
+          <option value="{{ obra.nome|lower }}">{{ obra.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
   </div>
-</div>
+</form>
+
   <!-- TABELA DESKTOP -->
   <div class="table-responsive tabela-usuarios">
     <table class="table table-striped table-bordered">
@@ -218,19 +227,22 @@ function filtrarUsuarios() {
   const texto = document.getElementById('filtroTexto').value.toLowerCase();
   const obraSelecionada = document.getElementById('filtroObra').value.toLowerCase();
 
-  const match = (content) =>
-    content.includes(texto) && (obraSelecionada === "" || content.includes(obraSelecionada));
+  // Função para verificar se a linha/card bate com o filtro
+  const match = (elemento, isCard = false) => {
+    const content = elemento.textContent.toLowerCase();
+    const obraMatch = obraSelecionada === "" || content.includes(obraSelecionada);
+    const textoMatch = texto === "" || content.includes(texto);
+    return obraMatch && textoMatch;
+  };
 
-  // Tabela
+  // TABELA
   document.querySelectorAll('.tabela-usuarios tbody tr').forEach(row => {
-    const content = row.textContent.toLowerCase();
-    row.style.display = match(content) ? '' : 'none';
+    row.style.display = match(row) ? '' : 'none';
   });
 
-  // Cards
+  // CARDS
   document.querySelectorAll('.cards-usuarios .card-usuario').forEach(card => {
-    const content = card.textContent.toLowerCase();
-    card.style.display = match(content) ? '' : 'none';
+    card.style.display = match(card, true) ? '' : 'none';
   });
 }
 </script>

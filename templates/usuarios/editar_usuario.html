@@ -30,7 +30,11 @@
        <input type="text" class="form-control" id="nome" name="nome" value="{{ usuario.nome or '' }}" required>
 
       </div>
+      <div class="mb-3">
+        <label for="rg" class="form-label">RG</label>
+        <input type="text" class="form-control" id="rg" name="rg" value="{{ usuario.rg or '' }}">
 
+      </div>
       <div class="mb-3">
         <label for="email" class="form-label">E-mail</label>
         <input type="email" name="email" class="form-control" value="{{ usuario.email }}" required>

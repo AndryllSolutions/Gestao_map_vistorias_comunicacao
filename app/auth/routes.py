@@ -83,6 +83,8 @@ def editar_usuario(user_id):
         senha = request.form.get('senha')
         cargo = request.form.get('cargo')
         obra_id = request.form.get('obra_id') or None
+        usuario.rg = request.form.get('rg')
+
 
         alterado = False
 
@@ -120,7 +122,16 @@ def dashboard():
 
     user = User.query.get(session['user_id'])
 
-    return render_template('auth/dashboard.html', usuario=user.email, cargo=user.cargo, ano=datetime.now().year)
+    obra_nome = user.obra.nome if user.obra else 'Não vinculada'
+   
+    return render_template(
+        'auth/dashboard.html',
+        usuario=user.email,
+        cargo=user.cargo,
+        ano=datetime.now().year,
+        obra_nome=obra_nome,
+    )
+
 
 
 
@@ -167,6 +178,7 @@ def login():
 
     user = User.query.filter_by(email=email).first()
     if user and check_password_hash(user.password, password):
+        session.permanent = True  # <- ESSENCIAL para usar o tempo de expiração configurado
         session['user_id'] = user.id
         session['usuario'] = user.email
         session['cargo'] = user.cargo

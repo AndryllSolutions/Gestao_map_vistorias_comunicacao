@@ -1,6 +1,7 @@
 # app/atendimento/routes.py
+from weasyprint import HTML
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash,make_response
 
 from datetime import datetime, time
 from werkzeug.utils import secure_filename
@@ -15,12 +16,20 @@ from flask import send_file  # se ainda não estiver
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
+
+
 from reportlab.lib.colors import black
 from textwrap import wrap
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from io import BytesIO
 from dateutil import parser
+import base64
+from PIL import Image
+from weasyprint import HTML
+import io
+
+
 
 def parse_hora(hora_str):
     try:
@@ -68,22 +77,31 @@ def dashboard_unificado():
 
     for v in vistorias:
         registros.append({
-            "id": v.id,
-            "nome": v.nome_responsavel or (v.comunicacao.nome if v.comunicacao else "Sem nome"),
-            "rua": v.rua or (v.comunicacao.endereco if v.comunicacao else "—"),
-            "obra": v.obra,
-            "data_envio": v.data_1,
-            "finalizada": v.finalizada,
-            "comunicador": (
-                f"{v.comunicacao.usuario.nome} (Admin)" if v.comunicacao and v.comunicacao.usuario and v.comunicacao.usuario.cargo == "admin"
-                else v.comunicacao.usuario.nome if v.comunicacao and v.comunicacao.usuario
-                else "—"
-            ),
-            "vistoriador": (
-                f"{v.usuario.nome} (Admin)" if v.usuario and v.usuario.cargo == "admin"
-                else v.usuario.nome if v.usuario else "—"
-            ),
-        })
+    "id": v.id,
+    "nome": v.nome_responsavel or (v.comunicacao.nome if v.comunicacao else "Sem nome"),
+    "rua": v.rua or (v.comunicacao.endereco if v.comunicacao else "—"),
+    "obra": v.obra,
+
+    # 👉 1ª tentativa
+    "data_envio": datetime.combine(v.data_1, v.hora_1) if v.data_1 and v.hora_1 else v.data_1,
+
+    # 👉 2ª tentativa
+    "segunda_tentativa": datetime.combine(v.data_2, v.hora_2) if v.data_2 and v.hora_2 else None,
+
+    # 👉 3ª tentativa
+    "terceira_tentativa": datetime.combine(v.data_3, v.hora_3) if v.data_3 and v.hora_3 else None,
+
+    "finalizada": v.finalizada,
+    "comunicador": (
+        f"{v.comunicacao.usuario.nome} (Admin)" if v.comunicacao and v.comunicacao.usuario and v.comunicacao.usuario.cargo == "admin"
+        else v.comunicacao.usuario.nome if v.comunicacao and v.comunicacao.usuario
+        else "—"
+    ),
+    "vistoriador": (
+        f"{v.usuario.nome} (Admin)" if v.usuario and v.usuario.cargo == "admin"
+        else v.usuario.nome if v.usuario else "—"
+    ),
+})
 
     registros.sort(
         key=lambda r: datetime.combine(r["data_envio"], time.min) if r.get("data_envio") else datetime.min,
@@ -338,179 +356,32 @@ def atendimento_unificado(id):
 
 
 
-@atendimento_bp.route("/<int:id>/assumir", methods=["POST"])
+@atendimento_bp.route("/assumir_vistoria/<int:id>", methods=["POST"])
 def assumir_vistoria(id):
-    if "user_id" not in session or session.get("cargo") != "vistoriador":
-        flash("Permissão negada.", "danger")
+    if "user_id" not in session:
         return redirect(url_for("auth.login"))
 
-    vistoria = VistoriaImovel.query.get_or_404(id)
+    vistoria = VistoriaImovel.query.filter_by(comunicacao_id=id).first()
+    if not vistoria:
+        flash("Vistoria não encontrada.", "danger")
+        return redirect(url_for("atendimento.dashboard_unificado"))
 
-    if not vistoria.usuario_id:
-        vistoria.usuario_id = session["user_id"]
-        db.session.commit()
-        flash("📌 Você assumiu a vistoria com sucesso!", "info")
-    else:
-        flash("⚠️ Esta vistoria já foi assumida por outro usuário.", "warning")
+    if vistoria.usuario_id:
+        flash("Essa vistoria já foi assumida.", "warning")
+        return redirect(url_for("atendimento.dashboard_unificado"))
 
-    return redirect(url_for("atendimento.atendimento_unificado", id=id))
+    vistoria.usuario_id = session["user_id"]
+    db.session.commit()
+    flash("✅ Vistoria assumida com sucesso!", "success")
+    return redirect(url_for("atendimento.dashboard_unificado"))
 
+def campo(valor, placeholder="________________"):
+    if isinstance(valor, (str, int, float)):
+        return str(valor) if valor not in ["", "None", "N/A"] else placeholder
+    if valor is None:
+        return placeholder
+    return str(valor)
 
-@atendimento_bp.route("/relatorio/pdf/<int:id>")
-def gerar_laudo_vistoria(id):
-    LOGO_PATH = os.path.join("static", "logo.png")
-    vistoria = VistoriaImovel.query.get_or_404(id)
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    largura, altura = A4
-    y = 800
-
-    def draw_wrapped_text(texto, x, y, width=100, line_height=15, font="Helvetica", font_size=11):
-        c.setFont(font, font_size)
-        for linha in wrap(texto, width=width):
-            c.drawString(x, y, linha)
-            y -= line_height
-        return y
-
-    # Logo
-    try:
-        logo = ImageReader(LOGO_PATH)
-        c.drawImage(logo, 50, altura - 60, width=100, preserveAspectRatio=True, mask='auto')
-    except Exception as e:
-        print("Erro ao carregar o logo:", e)
-
-    # Cabeçalho
-    c.setFont("Helvetica-Bold", 16)
-    c.drawCentredString(largura / 2, y, "LAUDO DA VISTORIA CAUTELAR")
-    y -= 40
-
-    # Dados principais
-    c.setFont("Helvetica", 12)
-    c.drawString(50, y, f"Data da Vistoria: {vistoria.data_1 or 'N/A'} {vistoria.hora_1 or ''}")
-    y -= 20
-    c.drawString(50, y, f"Responsável: {vistoria.nome_responsavel or 'N/A'} - CPF: {vistoria.cpf_responsavel or 'N/A'}")
-    y -= 20
-    c.drawString(50, y, f"Vínculo: {vistoria.tipo_vinculo or 'N/A'}")
-    y -= 20
-    c.drawString(50, y, f"Endereço: {vistoria.rua}, {vistoria.numero} - {vistoria.bairro}, {vistoria.municipio}")
-    y -= 20
-    c.drawString(50, y, f"Tipo de Imóvel: {vistoria.tipo_imovel}")
-    y -= 20
-    c.drawString(50, y, f"Soleira: {vistoria.soleira}")
-    y -= 20
-    c.drawString(50, y, f"Calçada: {vistoria.calcada}")
-    y -= 20
-    obra_nome = vistoria.obra.nome if vistoria.obra else "Obra não especificada"
-    c.drawString(50, y, f"Obra: {obra_nome}")
-    y -= 30
-
-    # Normas e LGPD
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "Norma Técnica")
-    y -= 20
-    y = draw_wrapped_text(
-        "ABNT NBR 12722:1992 - Discriminação de serviços para construção de edifícios.\n"
-        "A vistoria resguarda os interesses das partes envolvidas e do público em geral, "
-        "devendo ser realizada por profissional especializado, incluindo planta de localização, "
-        "relatório descritivo e registros fotográficos.",
-        50, y
-    )
-    y -= 10
-
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "Informações Legais - LGPD")
-    y -= 20
-    y = draw_wrapped_text(
-        "Em conformidade com a Lei Geral de Proteção de Dados (LGPD), realizamos a vistoria cautelar no imóvel, "
-        "coletando apenas os dados necessários. As informações serão utilizadas exclusivamente para os fins da vistoria "
-        "e não serão compartilhadas sem consentimento, salvo por exigência legal.",
-        50, y
-    )
-    y -= 10
-
-    # Observações
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "Observações Finais:")
-    y -= 20
-    observacoes = vistoria.observacoes or "Sem observações."
-    y = draw_wrapped_text(observacoes, 50, y)
-
-    y -= 20
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "Ciência do Morador quanto à Vistoria")
-    y -= 20
-    ciencia_texto = (
-        f"Eu, {vistoria.nome_responsavel or '________________'}, portador do CPF {vistoria.cpf_responsavel or '________________'}, "
-        "declaro que forneci de livre e espontânea vontade todas as informações referentes ao meu imóvel e estou ciente "
-        "das fotografias e observações registradas durante a vistoria. Confirmo que estou de acordo com o conteúdo deste laudo."
-    )
-    y = draw_wrapped_text(ciencia_texto, 50, y)
-
-    y -= 40
-    c.drawString(50, y, "________________________________________")
-    y -= 15
-    c.drawString(50, y, "Assinatura do Responsável")
-
-    # Fotos
-    fotos = vistoria.fotos
-    if fotos:
-        c.showPage()
-        c.setFont("Helvetica-Bold", 14)
-        c.drawCentredString(largura / 2, altura - 50, "REGISTRO FOTOGRÁFICO")
-
-        img_width = 220
-        img_height = 140
-        cols = 2
-        rows = 3
-        space_x = 40
-        space_y = 90
-        margin_x = 50
-        TITULO_Y = altura - 50
-        margin_top = TITULO_Y - 160
-
-        x_positions = [margin_x + (img_width + space_x) * col for col in range(cols)]
-        y_positions = [margin_top - (img_height + space_y) * row for row in range(rows)]
-
-        for index, foto in enumerate(fotos):
-            col = index % cols
-            row = (index // cols) % rows
-
-            if index % 6 == 0 and index > 0:
-                c.showPage()
-                c.setFont("Helvetica-Bold", 14)
-                c.drawCentredString(largura / 2, altura - 50, "REGISTRO FOTOGRÁFICO")
-
-            x = x_positions[col]
-            y = y_positions[row]
-
-            try:
-                img = ImageReader(foto.url)
-                c.drawImage(img, x, y, width=img_width, height=img_height, preserveAspectRatio=True, anchor='n')
-                c.setStrokeColor(black)
-                c.rect(x, y, img_width, img_height, fill=0)
-
-                legenda = foto.descricao or "Sem título"
-                c.setFont("Helvetica", 10)
-                c.drawCentredString(x + img_width / 2, y - 14, f"Foto {index + 1}: {legenda}")
-
-                if foto.data_envio:
-                    data_formatada = foto.data_envio.strftime("%d/%m/%Y %H:%M")
-                    c.setFont("Helvetica-Oblique", 8)
-                    c.drawCentredString(x + img_width / 2, y - 28, f"Enviada em {data_formatada}")
-
-            except Exception as e:
-                print("Erro ao carregar imagem no PDF:", e)
-
-    # Finaliza o PDF
-    c.save()
-    buffer.seek(0)
-
-    return send_file(
-        buffer,
-        as_attachment=True,
-        download_name=f"laudo_vistoria_{id}.pdf",
-        mimetype='application/pdf'
-    )
 
 
 @atendimento_bp.route("/relatorio/excel/<int:id>")
@@ -685,3 +556,38 @@ def editar_atendimento(id):
                            comunicacao=comunicacao,
                            vistoria=vistoria,
                            obras=obras)
+
+
+@atendimento_bp.route("/remover_vistoriador/<int:id>", methods=["POST"])
+def remover_vistoriador(id):
+    if "user_id" not in session or session["cargo"] != "admin":
+        abort(403)
+
+    vistoria = VistoriaImovel.query.get_or_404(id)
+    vistoria.usuario_id = None
+    db.session.commit()
+    flash("Vistoriador removido com sucesso.", "success")
+    return redirect(url_for("atendimento.editar_atendimento", id=vistoria.comunicacao_id))
+
+
+
+@atendimento_bp.route('/relatorio/pdf/<int:id>')
+def gerar_laudo_weasy(id):
+    vistoria = VistoriaImovel.query.get_or_404(id)
+    comunicacao = vistoria.comunicacao
+    obra = vistoria.obra
+    usuario = vistoria.usuario
+
+    nome_morador = comunicacao.nome
+    cpf_morador = comunicacao.cpf
+    rg_vistoriador = usuario.rg if usuario else None
+
+    return render_template("laudo_template/laudo_vistoria.html",
+        vistoria=vistoria,
+        comunicacao=comunicacao,
+        obra=obra,
+        usuario=usuario,
+        nome_morador=nome_morador,
+        cpf_morador=cpf_morador,
+        rg_vistoriador=rg_vistoriador
+    )
