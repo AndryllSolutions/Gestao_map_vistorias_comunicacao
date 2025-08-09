@@ -210,6 +210,36 @@
   <label for="observacoes">📝 Observações Gerais</label>
   <textarea name="observacoes" id="observacoes" class="form-control" rows="3">{{ vistoria.observacoes or '' }}</textarea>
 </div>
+{% if session.cargo in ['admin', 'vistoriador'] %}
+<div class="mb-3">
+  <label for="fotos" class="form-label">📷 Fotos da Vistoria</label>
+  <input type="file" class="form-control" id="fotos" name="fotos" multiple accept="image/*">
+  <small class="form-text text-muted">Você pode selecionar várias fotos de uma vez.</small>
+</div>
+
+{% endif %}
+{% if vistoria and vistoria.fotos %}
+  <div class="mt-3">
+    <label class="form-label">📁 Fotos já enviadas</label>
+    <div class="row">
+      {% for foto in vistoria.fotos %}
+      <div class="col-6 col-md-4 mb-3">
+        <div class="card shadow-sm">
+          <img src="{{ foto.url }}" class="card-img-top" alt="{{ foto.titulo }}" style="height: 180px; object-fit: cover;">
+          <div class="card-body p-2">
+            <p class="card-text small text-truncate mb-1">{{ foto.titulo }}</p>
+            {% if session.cargo in ['admin', 'vistoriador'] %}
+              <form method="POST" action="{{ url_for('fotos.excluir_foto', foto_id=foto.id) }}" onsubmit="return confirm('Tem certeza que deseja excluir esta foto?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-trash"></i> Excluir</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
 
 <!-- VISTORIA - ASSINATURA -->
 <h5 class="mt-4 mb-3">✍️ Assinatura do Morador</h5>

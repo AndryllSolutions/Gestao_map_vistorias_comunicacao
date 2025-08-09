@@ -143,6 +143,26 @@
       CPF: {{ comunicacao.cpf or '___._ _ _._ _ _-__' }}
     </td>
   </tr>
+{% if fotos %}
+<h2>📷 Fotos da Vistoria</h2>
+<table style="width: 100%; border-spacing: 10px;">
+  {% for foto in fotos|batch(2, '&nbsp;') %}
+  <tr>
+    {% for f in foto %}
+    <td style="width: 50%; text-align: center;">
+      {% if f != '&nbsp;' %}
+          <img src="data:image/jpeg;base64,{{ f.base64 }}" alt="Foto" style="max-width: 100%; max-height: 300px; border: 1px solid #ccc;">
+        <span style="font-size: 11px;">{{ f.nome or "Sem título" }}</span>
+
+      {% endif %}
+    </td>
+    {% endfor %}
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+
 </table>
 
 </body>

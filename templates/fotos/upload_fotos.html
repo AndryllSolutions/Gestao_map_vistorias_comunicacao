@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Upload de Fotos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div class="container py-5">
+    <h3 class="mb-4 text-primary">📸 Upload de Fotos – Obra #{{ obra_id }}, Vistoria #{{ vistoria_id }}</h3>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label for="fotos" class="form-label">Selecione as fotos:</label>
+        <input class="form-control" type="file" name="fotos" id="fotos" accept="image/*" multiple required>
+      </div>
+      <button type="submit" class="btn btn-success">
+        <i class="bi bi-upload"></i> Enviar Fotos
+      </button>
+    </form>
+
+    {% if fotos_enviadas %}
+      <hr>
+      <h5 class="mt-4">📁 Fotos Enviadas:</h5>
+      <ul class="list-group">
+        {% for foto in fotos_enviadas %}
+          <li class="list-group-item">{{ foto }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

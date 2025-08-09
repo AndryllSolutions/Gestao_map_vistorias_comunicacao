@@ -149,6 +149,39 @@
       <p class="mt-2">Assinatura anterior:</p>
       <img src="{{ vistoria.assinatura_base64 }}" alt="Assinatura" style="max-width:100%; border:1px solid #ccc;">
     {% endif %}
+    <hr>
+<h5 class="mt-4 mb-2">📸 Fotos da Vistoria</h5>
+
+<!-- Upload -->
+<div class="mb-3">
+  <label for="fotos" class="form-label">Enviar novas fotos:</label>
+  <input type="file" class="form-control" name="fotos" id="fotos" multiple accept="image/*">
+</div>
+
+<!-- Visualização das fotos existentes -->
+<div class="row">
+  {% for foto in fotos_vistoria %}
+    <div class="col-md-4 mb-3">
+      <div class="card shadow-sm">
+        <img src="{{ foto.url }}" class="card-img-top" style="max-height: 200px; object-fit: cover;" alt="Foto da Vistoria">
+        <div class="card-body p-2">
+          <p class="small mb-2 text-truncate">{{ foto.titulo or "Sem título" }}</p>
+          {% if session.cargo in ['admin', 'vistoriador'] %}
+            <form method="POST" action="{{ url_for('fotos.excluir_foto', foto_id=foto.id) }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                <i class="bi bi-trash"></i> Excluir
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="col-12">
+      <p class="text-muted">Nenhuma foto enviada ainda.</p>
+    </div>
+  {% endfor %}
+</div>
 
     <hr>
     <div class="d-flex justify-content-between">

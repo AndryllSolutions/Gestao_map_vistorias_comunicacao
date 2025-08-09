@@ -28,6 +28,21 @@ import base64
 from PIL import Image
 from weasyprint import HTML
 import io
+from dotenv import load_dotenv
+from app.fotos.utils import upload_foto_bunny  # vamos criar isso já já
+from app.models import FotoVistoria
+from app.fotos.upload_bunny import upload_foto_vistoria
+from app.fotos.bunny import upload_foto_vistoria
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from app.models import db, ComunicacaoObra, VistoriaImovel, Obra, FotoVistoria
+from app.fotos.bunny import upload_foto_vistoria
+from dateutil import parser
+import base64
+import requests
+from io import BytesIO
+atendimento_bp = Blueprint("atendimento", __name__)
+load_dotenv()
+
 
 
 
@@ -237,6 +252,22 @@ def criar_atendimento():
     )
 
     flash("✅ Atendimento criado com sucesso!", "success")
+    # Upload de fotos no momento da criação (se houver)
+    if "access_token" in session and "fotos" in request.files:
+        for foto in request.files.getlist("fotos"):
+            if foto.filename:
+                try:
+                    resultado = upload_foto_vistoria(session["access_token"], vistoria.obra_id, vistoria.id, foto)
+                    nova_foto = FotoVistoria(
+                        vistoria_id=vistoria.id,
+                        url=resultado["url"],
+                        titulo=foto.filename,
+                        descricao=""
+                    )
+                    db.session.add(nova_foto)
+                except Exception as e:
+                    print(f"Erro: {e}")
+        db.session.commit()
     return redirect(url_for("atendimento.atendimento_unificado", id=nova_vistoria.id))
 
 @atendimento_bp.route("/<int:id>", methods=["GET", "POST"])
@@ -325,7 +356,31 @@ def atendimento_unificado(id):
             vistoriador_assumiu = True
 
         db.session.commit()
+        # Upload de fotos no momento da criação (se houver)
+    fotos = request.files.getlist("fotos")
+    if fotos:
+        obra = Obra.query.get(obra_id)
+        for foto in fotos:
+            if foto.filename:
+                try:
+                    resultado = upload_foto_vistoria(
+                        token=os.getenv("BUNNY_STORAGE_KEY"),
+                        obra_nome=obra.nome,
+                        vistoria_id=nova_vistoria.id,
+                        foto=foto
+                    )
+                    nova_foto = FotoVistoria(
+                        vistoria_id=nova_vistoria.id,
+                        url=resultado["url"],
+                        titulo=resultado["nome"],
+                        descricao=""
+                    )
+                    db.session.add(nova_foto)
+                except Exception as e:
+                    print(f"Erro ao enviar foto: {e}")
+        db.session.commit()
 
+        db.session.commit()
         registrar_acao("edição", "VistoriaImovel", vistoria.id, session["user_id"],
                        f"Vistoria editada no atendimento #{vistoria.id}.")
         if comunicacao:
@@ -346,6 +401,27 @@ def atendimento_unificado(id):
     for i in range(1, 4):
         tentativas[f"data_{i}"] = getattr(vistoria, f"data_{i}", None)
         tentativas[f"hora_{i}"] = getattr(vistoria, f"hora_{i}", None)
+
+
+    if request.files.getlist("fotos"):
+        fotos = request.files.getlist("fotos")
+        for foto in fotos:
+            if foto.filename:
+                url = upload_foto_vistoria(
+                    token=os.getenv("BUNNY_STORAGE_API_KEY"),
+                    obra_nome=comunicacao.obra.nome,
+                    vistoria_id=vistoria.id,
+                    foto=foto
+                )
+                if url:
+                    nova_foto = FotoVistoria(
+                        titulo=foto.filename,
+                        url=url,
+                        descricao="",
+                        vistoria_id=vistoria.id
+                    )
+                    db.session.add(nova_foto)
+        db.session.commit()
 
     return render_template("atendimento/formulario.html",
                            vistoria=vistoria,
@@ -488,6 +564,20 @@ def exportar_comunicacoes_excel():
     )
 
 
+
+# Helpers para datas/horas seguras
+def parse_date_safe(date_str):
+    try:
+        return parser.parse(date_str).date() if date_str else None
+    except Exception:
+        return None
+
+def parse_time_safe(time_str):
+    try:
+        return parser.parse(time_str).time() if time_str else None
+    except Exception:
+        return None
+
 @atendimento_bp.route("/atendimento/<int:id>/editar", methods=["GET", "POST"])
 def editar_atendimento(id):
     comunicacao = ComunicacaoObra.query.get_or_404(id)
@@ -520,7 +610,7 @@ def editar_atendimento(id):
         vistoria.municipio = request.form.get("municipio")
         vistoria.bairro = request.form.get("bairro")
         vistoria.rua = request.form.get("rua")
-        vistoria.numero = request.form.get("numero_vistoria")  # para evitar conflito com comunicacao.numero
+        vistoria.numero = request.form.get("numero_vistoria")
         vistoria.complemento = request.form.get("complemento")
         vistoria.celular = request.form.get("celular")
         vistoria.tipo_imovel = request.form.get("tipo_imovel")
@@ -530,16 +620,13 @@ def editar_atendimento(id):
         vistoria.assinatura_base64 = request.form.get("assinatura_base64")
         vistoria.obra_id = request.form.get("obra_id")
 
-        # Tentativas
-        try:
-            vistoria.data_1 = parser.parse(request.form.get("data_1")).date() if request.form.get("data_1") else None
-            vistoria.hora_1 = parser.parse(request.form.get("hora_1")).time() if request.form.get("hora_1") else None
-            vistoria.data_2 = parser.parse(request.form.get("data_2")).date() if request.form.get("data_2") else None
-            vistoria.hora_2 = parser.parse(request.form.get("hora_2")).time() if request.form.get("hora_2") else None
-            vistoria.data_3 = parser.parse(request.form.get("data_3")).date() if request.form.get("data_3") else None
-            vistoria.hora_3 = parser.parse(request.form.get("hora_3")).time() if request.form.get("hora_3") else None
-        except Exception as e:
-            print("Erro ao processar tentativas:", e)
+        # Tentativas com parsing seguro
+        vistoria.data_1 = parse_date_safe(request.form.get("data_1"))
+        vistoria.hora_1 = parse_time_safe(request.form.get("hora_1"))
+        vistoria.data_2 = parse_date_safe(request.form.get("data_2"))
+        vistoria.hora_2 = parse_time_safe(request.form.get("hora_2"))
+        vistoria.data_3 = parse_date_safe(request.form.get("data_3"))
+        vistoria.hora_3 = parse_time_safe(request.form.get("hora_3"))
 
         try:
             db.session.commit()
@@ -548,14 +635,43 @@ def editar_atendimento(id):
             db.session.rollback()
             print("Erro ao salvar:", e)
             flash("❌ Erro ao salvar alterações.", "danger")
-        
+
+        # Upload de fotos para BunnyCDN
+        if "fotos" in request.files and vistoria and vistoria.obra_id:
+            fotos = request.files.getlist("fotos")
+            for foto in fotos:
+                if foto and foto.filename:
+                    try:
+                        obra = Obra.query.get(vistoria.obra_id)
+                        obra_nome = obra.nome if obra else "SemObra"
+
+                        resultado = upload_foto_vistoria(obra_nome, vistoria.id, foto)
+                        nova_foto = FotoVistoria(
+                            vistoria_id=vistoria.id,
+                            url=resultado["url"],
+                            titulo=foto.filename,
+                            descricao=""
+                        )
+                        db.session.add(nova_foto)
+                        db.session.commit()
+                        print(f"✅ Foto {foto.filename} enviada com sucesso.")
+                    except Exception as e:
+                        print(f"❌ Erro ao enviar {foto.filename}: {e}")
+                        flash(f"Erro ao enviar {foto.filename}: {e}", "danger")
 
         return redirect(url_for("atendimento.editar_atendimento", id=id))
 
-    return render_template("editar_atendimento.html",
-                           comunicacao=comunicacao,
-                           vistoria=vistoria,
-                           obras=obras)
+    # GET: carregar página com fotos
+    fotos_vistoria = FotoVistoria.query.filter_by(vistoria_id=vistoria.id).all() if vistoria else []
+    return render_template(
+        "atendimento/editar_atendimento.html",
+        comunicacao=comunicacao,
+        vistoria=vistoria,
+        obras=obras,
+        fotos_vistoria=fotos_vistoria
+    )
+
+
 
 
 @atendimento_bp.route("/remover_vistoriador/<int:id>", methods=["POST"])
@@ -578,16 +694,41 @@ def gerar_laudo_weasy(id):
     obra = vistoria.obra
     usuario = vistoria.usuario
 
-    nome_morador = comunicacao.nome
-    cpf_morador = comunicacao.cpf
-    rg_vistoriador = usuario.rg if usuario else None
+    # 🧼 Nome da obra com underline
+    obra_nome_sanitizado = obra.nome.replace(" ", "_") if obra and obra.nome else "Obra"
 
-    return render_template("laudo_template/laudo_vistoria.html",
+    fotos_db = FotoVistoria.query.filter_by(vistoria_id=vistoria.id).all()
+    fotos_base64 = []
+
+    for f in fotos_db:
+        try:
+            # 🔁 Substitui espaços por underline na URL também, para fotos antigas
+            url_segura = f.url.replace(" ", "_")
+            response = requests.get(url_segura)
+            response.raise_for_status()
+            img_b64 = base64.b64encode(response.content).decode("utf-8")
+            fotos_base64.append({
+                "titulo": f.titulo or f.url.split("/")[-1],
+                "url": url_segura,
+                "base64": img_b64
+            })
+        except Exception as e:
+            print(f"Erro ao baixar imagem {f.url}: {e}")
+
+    html = render_template(
+        "laudo_template/laudo_vistoria.html",
         vistoria=vistoria,
         comunicacao=comunicacao,
         obra=obra,
         usuario=usuario,
-        nome_morador=nome_morador,
-        cpf_morador=cpf_morador,
-        rg_vistoriador=rg_vistoriador
+        fotos=fotos_base64,
+        nome_morador=comunicacao.nome if comunicacao else "—",
+        cpf_morador=comunicacao.cpf if comunicacao else "—",
+        rg_vistoriador=usuario.rg if usuario else "—"
     )
+
+    pdf_io = BytesIO()
+    HTML(string=html).write_pdf(pdf_io)
+    pdf_io.seek(0)
+
+    return send_file(pdf_io, as_attachment=True, download_name=f"laudo_vistoria_{id}.pdf", mimetype="application/pdf")

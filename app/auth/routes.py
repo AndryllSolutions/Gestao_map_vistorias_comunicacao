@@ -7,7 +7,9 @@ from ..models import db, User, Obra
 from ..utils import registrar_acao
 from app import db
 from app.models import User, HistoricoAcao
-
+import uuid
+import os
+import requests
 auth_bp = Blueprint('auth', __name__)
 
 
@@ -118,12 +120,15 @@ def editar_usuario(user_id):
 @auth_bp.route('/dashboard')
 def dashboard():
     if 'user_id' not in session:
-        return redirect(url_for('auth.login'))
+        if request.accept_mimetypes.accept_json:
+            return jsonify({'error': 'Sessão expirada'}), 401
+        else:
+            return redirect(url_for('auth.login_form'))  # Redireciona para index.html
 
     user = User.query.get(session['user_id'])
 
     obra_nome = user.obra.nome if user.obra else 'Não vinculada'
-   
+
     return render_template(
         'auth/dashboard.html',
         usuario=user.email,
@@ -131,6 +136,7 @@ def dashboard():
         ano=datetime.now().year,
         obra_nome=obra_nome,
     )
+
 
 
 
@@ -185,7 +191,10 @@ def login():
         return jsonify({'redirect': '/dashboard'})
 
     return jsonify({'error': 'Login inválido'}), 401
-
+#return render_template('index.html')  # já é o seu template de login
+@auth_bp.route('/login', methods=['GET'])
+def login_form():
+    return render_template('index.html')
 
 @auth_bp.route('/logout')
 def logout():
@@ -291,3 +300,5 @@ def historico():
     acoes = query.all()
 
     return render_template("historico/historico.html", acoes=acoes)
+
+
