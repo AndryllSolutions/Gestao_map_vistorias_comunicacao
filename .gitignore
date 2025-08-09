@@ -11,3 +11,5 @@ env/
 *.jpg
 *.jpeg
 *.pdf
+flask_session/
+*.env
