@@ -259,6 +259,33 @@
   <button type="submit" class="btn btn-success" onclick="this.disabled=true; this.innerHTML='Salvando...'; this.form.submit();">
     <i class="bi bi-check-circle"></i> Salvar
   </button>
+  <!-- LOCALIZAÇÃO (GPS) -->
+<h5 class="mt-4 mb-3">📍 Localização (GPS)</h5>
+<div class="row g-2 align-items-end" id="gps-bloco">
+  <div class="col-12 col-md-3">
+    <label class="form-label">Latitude</label>
+    <input type="text" class="form-control" id="gps_lat" name="gps_lat" readonly>
+  </div>
+  <div class="col-12 col-md-3">
+    <label class="form-label">Longitude</label>
+    <input type="text" class="form-control" id="gps_lng" name="gps_lng" readonly>
+  </div>
+  <div class="col-6 col-md-2">
+    <label class="form-label">Precisão (m)</label>
+    <input type="text" class="form-control" id="gps_acc" name="gps_acc" readonly>
+  </div>
+  <div class="col-6 col-md-4">
+    <label class="form-label">Coletado em</label>
+    <input type="text" class="form-control" id="gps_ts" name="gps_ts" readonly>
+  </div>
+  <div class="col-12 d-flex gap-2 mt-2">
+    <button type="button" class="btn btn-outline-primary" id="btnGPS">
+      <i class="bi bi-geo-alt"></i> Usar GPS do aparelho
+    </button>
+    <small class="text-muted" id="gps_status" aria-live="polite"></small>
+  </div>
+</div>
+
 </div>
 <script>
 function limparAssinatura() {
@@ -283,6 +310,113 @@ function mostrarOutroCampo() {
 document.addEventListener("DOMContentLoaded", function () {
   mostrarOutroCampo();
 });
+</script>
+<script>
+// ——— Assinatura: desenho mouse/toque e salva em base64 ———
+(() => {
+  const canvas = document.getElementById("signature");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const hidden = document.getElementById("assinatura");
+
+  let desenhando = false;
+  let ultimo = null;
+
+  function pos(ev){
+    const r = canvas.getBoundingClientRect();
+    const x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+    const y = (ev.touches ? ev.touches[0].clientY : ev.clientY) - r.top;
+    return {x, y};
+  }
+
+  function begin(ev){ desenhando = true; ultimo = pos(ev); ev.preventDefault(); }
+  function move(ev){
+    if (!desenhando) return;
+    const p = pos(ev);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#000';
+    ctx.beginPath();
+    ctx.moveTo(ultimo.x, ultimo.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    ultimo = p;
+    hidden.value = canvas.toDataURL("image/png");
+    ev.preventDefault();
+  }
+  function end(){ desenhando = false; ultimo = null; }
+
+  // mouse
+  canvas.addEventListener('mousedown', begin);
+  canvas.addEventListener('mousemove', move);
+  ['mouseup','mouseleave'].forEach(e => canvas.addEventListener(e, end));
+  // touch
+  canvas.addEventListener('touchstart', begin, {passive:false});
+  canvas.addEventListener('touchmove',  move,  {passive:false});
+  canvas.addEventListener('touchend',   end);
+
+  // limpar
+  window.limparAssinatura = function(){
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+    hidden.value = "";
+  };
+
+  // garantia: se tiver rabisco e o hidden vazio, salvar ao submeter
+  document.addEventListener('submit', (e) => {
+    if (!hidden.value) {
+      try { hidden.value = canvas.toDataURL("image/png"); } catch(_) {}
+    }
+  }, true);
+})();
+</script>
+<script>
+// ——— GPS: captura com alta precisão e preenche o formulário ———
+(() => {
+  const btn = document.getElementById('btnGPS');
+  if (!btn) return;
+
+  const lat = document.getElementById('gps_lat');
+  const lng = document.getElementById('gps_lng');
+  const acc = document.getElementById('gps_acc');
+  const ts  = document.getElementById('gps_ts');
+  const status = document.getElementById('gps_status');
+
+  function msg(t){ if(status){ status.textContent = t; } }
+
+  btn.addEventListener('click', () => {
+    if (!navigator.geolocation){
+      msg('⚠️ Geolocalização não suportada neste navegador.');
+      return;
+    }
+    msg('⏳ Obtendo posição… autorize o GPS.');
+    btn.disabled = true;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        const when = new Date(pos.timestamp);
+
+        lat.value = latitude.toFixed(6);
+        lng.value = longitude.toFixed(6);
+        acc.value = Math.round(accuracy);
+        ts.value  = when.toLocaleString();
+
+        msg('✅ Localização capturada.');
+        btn.disabled = false;
+      },
+      (err) => {
+        const map = {
+          1: 'Permissão negada.',
+          2: 'Posição indisponível.',
+          3: 'Tempo esgotado.'
+        };
+        msg(`❌ Falhou: ${map[err.code] || err.message}`);
+        btn.disabled = false;
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+    );
+  });
+})();
 </script>
 
 </body>
