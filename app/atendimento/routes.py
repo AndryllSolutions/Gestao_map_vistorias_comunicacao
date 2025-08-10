@@ -778,3 +778,79 @@ def gerar_laudo_weasy(id):
     pdf_io.seek(0)
 
     return send_file(pdf_io, as_attachment=True, download_name=f"laudo_vistoria_{id}.pdf", mimetype="application/pdf")
+
+
+def _require_login():
+    if "user_id" not in session:
+        abort(403)
+
+def _is_admin():
+    return session.get("cargo") == "admin"
+
+def _is_vistoriador():
+    return session.get("cargo") == "vistoriador"
+
+@atendimento_bp.post("/vistoria/<int:id>/finalizar")
+def finalizar_vistoria(id):
+    _require_login()
+    if not (_is_admin() or _is_vistoriador()):
+        abort(403)
+
+    v = VistoriaImovel.query.get_or_404(id)
+    com = v.comunicacao
+
+    # Validações mínimas (ajuste conforme sua regra)
+    if not v.assinatura_base64:
+        flash("Para finalizar: inclua a assinatura do morador.", "warning")
+        return redirect(url_for("atendimento.editar_atendimento", id=com.id))
+    tem_foto = db.session.query(FotoVistoria.id).filter_by(vistoria_id=v.id).first() is not None
+    if not tem_foto:
+        flash("Para finalizar: envie ao menos 1 foto da vistoria.", "warning")
+        return redirect(url_for("atendimento.editar_atendimento", id=com.id))
+
+    # Marca finalizada
+    v.finalizada = True
+    if hasattr(v, "finalizada_em"):
+        v.finalizada_em = datetime.utcnow()
+    if hasattr(v, "finalizada_por_user_id"):
+        v.finalizada_por_user_id = session.get("user_id")
+
+    # (Opcional) também marcar o atendimento como resolvido, se existir esse campo
+    if hasattr(com, "status"):
+        com.status = "resolvido"
+        if hasattr(com, "status_updated_at"):
+            com.status_updated_at = datetime.utcnow()
+        if hasattr(com, "status_by_user_id"):
+            com.status_by_user_id = session.get("user_id")
+
+    db.session.commit()
+    flash("✅ Vistoria finalizada com sucesso.", "success")
+    return redirect(url_for("atendimento.editar_atendimento", id=com.id))
+
+
+@atendimento_bp.post("/vistoria/<int:id>/reabrir")
+def reabrir_vistoria(id):
+    _require_login()
+    if not _is_admin():
+        abort(403)
+
+    v = VistoriaImovel.query.get_or_404(id)
+    com = v.comunicacao
+
+    v.finalizada = False
+    if hasattr(v, "finalizada_em"):
+        v.finalizada_em = None
+    if hasattr(v, "finalizada_por_user_id"):
+        v.finalizada_por_user_id = None
+
+    # (Opcional) reabrir atendimento
+    if hasattr(com, "status") and com.status == "resolvido":
+        com.status = "em_andamento"
+        if hasattr(com, "status_updated_at"):
+            com.status_updated_at = datetime.utcnow()
+        if hasattr(com, "status_by_user_id"):
+            com.status_by_user_id = session.get("user_id")
+
+    db.session.commit()
+    flash("Vistoria reaberta.", "info")
+    return redirect(url_for("atendimento.editar_atendimento", id=com.id))

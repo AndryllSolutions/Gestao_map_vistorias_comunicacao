@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
   <meta charset="UTF-8">
   <title>Editar Atendimento</title>
@@ -8,7 +7,6 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 </head>
-
 <body class="bg-light">
   <div class="container py-4">
 
@@ -39,9 +37,9 @@
 
     <h3 class="mb-4">✏️ Editar Atendimento #{{ comunicacao.id }}</h3>
 
-    <!-- Bloco: Assumir Vistoria -->
+    <!-- Bloco: Assumir Vistoria (admin e vistoriador podem assumir) -->
     {% if session.cargo in ['admin', 'vistoriador'] %}
-      {% if session.cargo == 'vistoriador' and vistoria and not vistoria.usuario %}
+      {% if vistoria and not vistoria.usuario %}
         <form method="POST" action="{{ url_for('atendimento.assumir_vistoria', id=comunicacao.id) }}" class="mb-3">
           <button type="submit" class="btn btn-outline-warning w-100">
             <i class="bi bi-person-plus"></i> 📌 Assumir esta Vistoria
@@ -57,13 +55,42 @@
         </div>
       {% endif %}
     {% endif %}
+{% if vistoria %}
+  <div class="mb-2">
+    <span class="badge {{ 'bg-success' if vistoria.finalizada else 'bg-primary' }}">
+      {{ 'Finalizada' if vistoria.finalizada else 'Em andamento' }}
+    </span>
+    {% if vistoria.finalizada and vistoria.finalizada_em %}
+      <small class="text-muted ms-2">
+        Finalizada em {{ vistoria.finalizada_em.strftime('%d/%m/%Y %H:%M') }}
+      </small>
+    {% endif %}
+  </div>
 
+  <div class="d-flex gap-2 mb-3">
+    {% if not vistoria.finalizada and session.cargo in ['admin', 'vistoriador'] %}
+      <form method="POST" action="{{ url_for('atendimento.finalizar_vistoria', id=vistoria.id) }}">
+        <button type="submit" class="btn btn-success"
+                onclick="return confirm('Finalizar a vistoria agora?')">
+          <i class="bi bi-check2-circle"></i> Finalizar Vistoria
+        </button>
+      </form>
+    {% elif vistoria.finalizada and session.cargo == 'admin' %}
+      <form method="POST" action="{{ url_for('atendimento.reabrir_vistoria', id=vistoria.id) }}">
+        <button type="submit" class="btn btn-outline-primary"
+                onclick="return confirm('Reabrir a vistoria?')">
+          <i class="bi bi-arrow-counterclockwise"></i> Reabrir Vistoria
+        </button>
+      </form>
+    {% endif %}
+  </div>
+{% endif %}
+
+    <!-- FORM PRINCIPAL -->
     <form id="form-editar" method="POST" enctype="multipart/form-data" autocomplete="off">
 
-
-      <!-- Bloco: Comunicação -->
+      <!-- 📞 Comunicação -->
       <h5>📞 Dados da Comunicação</h5>
-
       <div class="row g-2">
         <div class="col-md-4"><label>Nome</label><input type="text" name="nome" class="form-control" value="{{ comunicacao.nome }}"></div>
         <div class="col-md-4"><label>CPF</label><input type="text" name="cpf" class="form-control" value="{{ comunicacao.cpf }}"></div>
@@ -101,13 +128,12 @@
 
       <hr>
 
-      <!-- Bloco: Vistoria -->
+      <!-- 🏘️ Vistoria -->
       <h5>🏘️ Vistoria</h5>
 
-      <!-- Tentativas de Vistoria -->
       <h5 class="mt-4">📅 Tentativas de Vistoria</h5>
       <div class="row g-2">
-        {% for i in range(1, 4) %}
+        {% for i in range(1, 3 + 1) %}
           <div class="col-md-3">
             <label for="data_{{ i }}">Data {{ i }}</label>
             <input type="date" name="data_{{ i }}" class="form-control"
@@ -148,31 +174,64 @@
         <div class="col-12"><label>Observações</label><textarea name="observacoes" class="form-control" rows="3">{{ vistoria.observacoes }}</textarea></div>
       </div>
 
-      <!-- Assinatura -->
+      <!-- ✍️ Assinatura (Acessível) -->
       <h5 class="mt-4 mb-2">✍️ Assinatura do Morador</h5>
-      <div class="border p-2 bg-white">
-        <canvas id="signature-pad" width="400" height="150" style="border:1px solid #ccc;"></canvas>
+
+      <div class="mb-2">
+        <label class="form-label">Modo de assinatura:</label>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="sig_mode" id="sig_mode_draw" value="draw" checked>
+          <label class="form-check-label" for="sig_mode_draw">Desenhar</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="sig_mode" id="sig_mode_type" value="type">
+          <label class="form-check-label" for="sig_mode_type">Digitar</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="sig_mode" id="sig_mode_upload" value="upload">
+          <label class="form-check-label" for="sig_mode_upload">Enviar Imagem</label>
+        </div>
       </div>
+
+      <div id="sig-panel-draw" class="border p-2 bg-white mb-2" aria-label="Área para desenhar assinatura">
+        <canvas id="signature-pad" width="400" height="150" style="border:1px solid #ccc;" tabindex="0"></canvas>
+        <div class="mt-2 d-flex gap-2 align-items-center">
+          <label for="sig_thickness" class="form-label m-0">Espessura:</label>
+          <input type="range" id="sig_thickness" min="1" max="10" value="2" class="form-range" style="max-width:200px">
+          <button type="button" class="btn btn-sm btn-outline-dark" id="sig_high_contrast">Alto Contraste</button>
+          <button type="button" class="btn btn-sm btn-danger" id="sig_clear">Limpar</button>
+        </div>
+      </div>
+
+      <div id="sig-panel-type" hidden>
+        <label for="sig_typed" class="form-label">Digite seu nome</label>
+        <input type="text" id="sig_typed" class="form-control" placeholder="Ex.: Maria da Silva">
+      </div>
+
+      <div id="sig-panel-upload" hidden>
+        <label for="sig_file" class="form-label">Envie uma imagem (PNG/JPG)</label>
+        <input type="file" id="sig_file" class="form-control" accept="image/*">
+      </div>
+
       <input type="hidden" id="assinatura_base64" name="assinatura_base64" value="{{ vistoria.assinatura_base64 }}">
-      <div class="mt-2">
-        <button type="button" class="btn btn-sm btn-danger" onclick="clearSignature()">Limpar</button>
-      </div>
       {% if vistoria.assinatura_base64 %}
         <p class="mt-2">Assinatura anterior:</p>
-        <img src="{{ vistoria.assinatura_base64 }}" alt="Assinatura" style="max-width:100%; border:1px solid #ccc;">
+        <img src="{{ vistoria.assinatura_base64 }}" alt="Assinatura existente" style="max-width:100%; border:1px solid #ccc;">
       {% endif %}
+      <div id="sig-status" class="visually-hidden" aria-live="polite"></div>
 
       <hr>
 
-      <!-- Upload -->
+      <!-- 📸 Upload de fotos -->
       <h5 class="mt-4 mb-2">📸 Fotos da Vistoria</h5>
       <div class="mb-3">
         <label for="fotos" class="form-label">Enviar novas fotos</label>
         <input type="file" class="form-control" name="fotos" id="fotos" multiple accept="image/*">
+        <div class="form-text">Você pode definir um título para cada foto antes de salvar.</div>
       </div>
       <div id="preview-fotos" class="row g-3"></div>
 
-    </form> <!-- FECHA FORM PRINCIPAL -->
+    </form><!-- /form-editar -->
 
     <!-- Fotos já enviadas -->
     <div class="mt-4">
@@ -215,57 +274,239 @@
       <a href="{{ url_for('atendimento.dashboard_unificado') }}" class="btn btn-secondary">Cancelar</a>
       <button type="submit" class="btn btn-success" form="form-editar">Salvar Alterações</button>
     </div>
-<script>
-(function () {
-  const inputArquivos = document.getElementById('fotos');
-  const container = document.getElementById('preview-fotos');
 
-  if (!inputArquivos || !container) return;
+    <!-- Preview das fotos (com título) -->
+    <script>
+    (function () {
+      const inputArquivos = document.getElementById('fotos');
+      const container = document.getElementById('preview-fotos');
+      if (!inputArquivos || !container) return;
 
-  inputArquivos.addEventListener('change', () => {
-    container.innerHTML = '';
+      inputArquivos.addEventListener('change', () => {
+        container.innerHTML = '';
+        Array.from(inputArquivos.files).forEach((file, index) => {
+          const col = document.createElement('div');
+          col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
 
-    Array.from(inputArquivos.files).forEach((file, index) => {
-      const col = document.createElement('div');
-      col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
+          const card = document.createElement('div');
+          card.className = 'card h-100 shadow-sm';
 
-      const card = document.createElement('div');
-      card.className = 'card h-100 shadow-sm';
+          const ratio = document.createElement('div');
+          ratio.className = 'ratio ratio-4x3';
 
-      const ratio = document.createElement('div');
-      ratio.className = 'ratio ratio-4x3';
+          const img = document.createElement('img');
+          img.className = 'card-img-top';
+          img.style.objectFit = 'cover';
+          img.alt = file.name;
 
-      const img = document.createElement('img');
-      img.className = 'card-img-top';
-      img.style.objectFit = 'cover';
-      img.alt = file.name;
+          const reader = new FileReader();
+          reader.onload = e => { img.src = e.target.result; };
+          reader.readAsDataURL(file);
 
-      const reader = new FileReader();
-      reader.onload = e => { img.src = e.target.result; };
-      reader.readAsDataURL(file);
+          const body = document.createElement('div');
+          body.className = 'card-body p-2';
 
-      const body = document.createElement('div');
-      body.className = 'card-body p-2';
+          const inputTitulo = document.createElement('input');
+          inputTitulo.type = 'text';
+          inputTitulo.name = `titulo_foto_${index}`;
+          inputTitulo.className = 'form-control form-control-sm mt-2';
+          inputTitulo.placeholder = 'Título da foto';
+          inputTitulo.maxLength = 100;
 
-      // Campo de título
-      const inputTitulo = document.createElement('input');
-      inputTitulo.type = 'text';
-      inputTitulo.name = `titulo_foto_${index}`;
-      inputTitulo.className = 'form-control form-control-sm mt-2';
-      inputTitulo.placeholder = 'Título da foto';
-      inputTitulo.maxLength = 100;
+          body.appendChild(inputTitulo);
+          ratio.appendChild(img);
+          card.appendChild(ratio);
+          card.appendChild(body);
+          col.appendChild(card);
+          container.appendChild(col);
+        });
+      });
+    })();
+    </script>
 
-      body.appendChild(inputTitulo);
-      ratio.appendChild(img);
-      card.appendChild(ratio);
-      card.appendChild(body);
-      col.appendChild(card);
+    <!-- Confirmação assumir vistoria -->
+    <script>
+    (function () {
+      const assumirForm = document.querySelector('form[action*="assumir_vistoria"]');
+      if (!assumirForm) return;
+      assumirForm.addEventListener('submit', function (e) {
+        const btn = this.querySelector('button[type="submit"]');
+        const ok = confirm('Confirmar: assumir esta vistoria?');
+        if (!ok) { e.preventDefault(); return; }
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Assumindo...';
+        }
+      });
+    })();
+    </script>
 
-      container.appendChild(col);
-    });
-  });
-})();
-</script>
+    <!-- Assinatura acessível (desenhar/digitar/upload) -->
+    <script>
+    (function () {
+      const modeDraw = document.getElementById('sig_mode_draw');
+      const modeType = document.getElementById('sig_mode_type');
+      const modeUpload = document.getElementById('sig_mode_upload');
+      const panelDraw = document.getElementById('sig-panel-draw');
+      const panelType = document.getElementById('sig-panel-type');
+      const panelUpload = document.getElementById('sig-panel-upload');
+      const live = document.getElementById('sig-status');
+
+      const hidden = document.getElementById('assinatura_base64');
+      const form = document.getElementById('form-editar');
+
+      const canvas = document.getElementById('signature-pad');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const thickness = document.getElementById('sig_thickness');
+      const btnHC = document.getElementById('sig_high_contrast');
+      const btnClear = document.getElementById('sig_clear');
+
+      let drawing = false;
+      let last = null;
+      let stroke = parseInt(thickness?.value || '2', 10);
+      let color = '#000';
+
+      function announce(msg){ if(live){ live.textContent = msg; } }
+
+      function resizeCanvas() {
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = Math.floor(rect.width * ratio);
+        canvas.height = Math.floor(rect.height * ratio);
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        if (hidden.value && hidden.value.startsWith('data:image')) {
+          const img = new Image();
+          img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
+          img.src = hidden.value;
+        }
+      }
+
+      function relPos(ev) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = ev.clientX ?? (ev.touches && ev.touches[0].clientX);
+        const clientY = ev.clientY ?? (ev.touches && ev.touches[0].clientY);
+        return { x: clientX - rect.left, y: clientY - rect.top };
+      }
+
+      function startDraw(x, y){ drawing = true; last = {x,y}; }
+      function moveDraw(x, y){
+        if(!drawing) return;
+        ctx.lineWidth = stroke;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(last.x, last.y);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        last = {x,y};
+        hidden.value = canvas.toDataURL('image/png');
+      }
+      function endDraw(){ drawing = false; last = null; }
+
+      // mouse
+      canvas.addEventListener('mousedown', e => { const p = relPos(e); startDraw(p.x,p.y); });
+      canvas.addEventListener('mousemove', e => { const p = relPos(e); moveDraw(p.x,p.y); });
+      ['mouseup','mouseleave'].forEach(ev => canvas.addEventListener(ev, endDraw));
+      // touch
+      canvas.addEventListener('touchstart', e => { e.preventDefault(); const p = relPos(e); startDraw(p.x,p.y); }, {passive:false});
+      canvas.addEventListener('touchmove',  e => { e.preventDefault(); const p = relPos(e); moveDraw(p.x,p.y); }, {passive:false});
+      canvas.addEventListener('touchend', endDraw);
+
+      // teclado
+      let keyboardCursor = { x: 20, y: 20 };
+      canvas.addEventListener('keydown', e => {
+        if (e.code === 'Space') {
+          drawing = !drawing;
+          announce(drawing ? 'Desenhando' : 'Parado');
+          e.preventDefault();
+        }
+        const step = 4;
+        if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) {
+          if (e.code === 'ArrowUp')    keyboardCursor.y -= step;
+          if (e.code === 'ArrowDown')  keyboardCursor.y += step;
+          if (e.code === 'ArrowLeft')  keyboardCursor.x -= step;
+          if (e.code === 'ArrowRight') keyboardCursor.x += step;
+          const rect = canvas.getBoundingClientRect();
+          keyboardCursor.x = Math.max(0, Math.min(rect.width, keyboardCursor.x));
+          keyboardCursor.y = Math.max(0, Math.min(rect.height, keyboardCursor.y));
+          if (drawing) moveDraw(keyboardCursor.x, keyboardCursor.y);
+          e.preventDefault();
+        }
+      });
+
+      thickness?.addEventListener('input', e => { stroke = parseInt(e.target.value,10)||2; announce(`Espessura ${stroke}`); });
+      btnHC?.addEventListener('click', () => {
+        canvas.style.borderColor = canvas.style.borderColor === 'black' ? '#666' : 'black';
+        announce('Alto contraste alternado');
+      });
+      btnClear?.addEventListener('click', () => {
+        const r = canvas.getBoundingClientRect();
+        ctx.clearRect(0,0,r.width,r.height);
+        hidden.value = '';
+        announce('Assinatura apagada');
+      });
+
+      // Digitar
+      const typed = document.getElementById('sig_typed');
+
+      // Upload
+      const file = document.getElementById('sig_file');
+      file?.addEventListener('change', async () => {
+        const f = file.files?.[0];
+        if (!f) return;
+        const b64 = await f.arrayBuffer().then(buf => {
+          const bin = new Uint8Array(buf);
+          let s = ''; for (let i=0;i<bin.length;i++) s += String.fromCharCode(bin[i]);
+          return 'data:'+ (f.type || 'image/png') +';base64,'+ btoa(s);
+        });
+        hidden.value = b64;
+        announce('Imagem de assinatura carregada');
+      });
+
+      function setMode(mode){
+        panelDraw.hidden = mode !== 'draw';
+        panelType.hidden = mode !== 'type';
+        panelUpload.hidden = mode !== 'upload';
+        announce(
+          mode === 'draw'   ? 'Modo desenho selecionado' :
+          mode === 'type'   ? 'Modo digitar selecionado' :
+                              'Modo enviar imagem selecionado'
+        );
+      }
+      [modeDraw, modeType, modeUpload].forEach(r => r?.addEventListener('change', () => setMode(r.value)));
+      setMode('draw');
+
+      // antes de enviar, garante base64 conforme modo
+      form?.addEventListener('submit', () => {
+        if (modeType.checked) {
+          const name = (typed?.value || '').trim();
+          if (name) {
+            try {
+              const off = document.createElement('canvas');
+              off.width = 800; off.height = 200;
+              const c = off.getContext('2d');
+              c.fillStyle = '#fff'; c.fillRect(0,0,off.width,off.height);
+              c.fillStyle = '#000';
+              c.font = '48px cursive';
+              c.textBaseline = 'middle';
+              c.fillText(name, 24, off.height/2);
+              hidden.value = off.toDataURL('image/png');
+            } catch (e) {
+              hidden.value = 'typed:'+name;
+            }
+          } else {
+            hidden.value = '';
+          }
+        }
+        if (modeDraw.checked && !hidden.value) {
+          try { hidden.value = canvas.toDataURL('image/png'); } catch(_) {}
+        }
+      });
+
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+    })();
+    </script>
 
   </div>
 </body>

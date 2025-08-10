@@ -17,7 +17,18 @@ class User(db.Model):
 
     obra_id = db.Column(db.Integer, db.ForeignKey('obra.id'))
     obra = db.relationship('Obra', backref='usuarios')
+    
+    vistorias_responsavel = db.relationship(
+        'VistoriaImovel',
+        foreign_keys='VistoriaImovel.usuario_id',
+        back_populates='usuario'
+    )
 
+    vistorias_que_finalizei = db.relationship(
+        'VistoriaImovel',
+        foreign_keys='VistoriaImovel.finalizada_por_user_id',
+        back_populates='finalizada_por'
+    )
 class Imovel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     endereco = db.Column(db.String(200), nullable=False)
@@ -57,6 +68,8 @@ class ComunicacaoObra(db.Model):
 
 
 class VistoriaImovel(db.Model):
+    __tablename__ = "vistoria_imovel"
+
     id = db.Column(db.Integer, primary_key=True)
     data_1 = db.Column(db.Date)
     hora_1 = db.Column(db.Time)
@@ -64,7 +77,7 @@ class VistoriaImovel(db.Model):
     hora_2 = db.Column(db.Time)
     data_3 = db.Column(db.Date)
     hora_3 = db.Column(db.Time)
-    nome_responsavel = db.Column(db.String(100)) 
+    nome_responsavel = db.Column(db.String(100))
     cpf_responsavel = db.Column(db.String(50))
     tipo_vinculo = db.Column(db.String(30))
     municipio = db.Column(db.String(100))
@@ -78,18 +91,38 @@ class VistoriaImovel(db.Model):
     calcada = db.Column(db.String(100))
     observacoes = db.Column(db.Text)
     uso = db.Column(db.String(20))  # residencial, comercial, misto
-    assinatura_base64 = db.Column(db.Text)  # ✅ novo campo
-    finalizada = db.Column(db.Boolean, default=False)
+    assinatura_base64 = db.Column(db.Text)
+    finalizada = db.Column(db.Boolean, default=False, nullable=False)
+    finalizada_em = db.Column(db.DateTime, nullable=True)
 
-    fotos = db.relationship("FotoVistoria", back_populates="vistoria", cascade="all, delete-orphan")
-    usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    usuario = db.relationship('User', backref='vistorias')
+    # 🔑 defina as FKs ANTES das relationships
+    usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    finalizada_por_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
+    # outras FKs
     obra_id = db.Column(db.Integer, db.ForeignKey('obra.id', name='fk_vistoria_obra'))
-    obra = db.relationship("Obra", backref="vistorias")
-
     comunicacao_id = db.Column(db.Integer, db.ForeignKey('comunicacao_obra.id'))
+
+    # 🔁 relationships (agora SIM pode usar as colunas)
+    usuario = db.relationship(
+        'User',
+        foreign_keys=[usuario_id],
+        back_populates='vistorias_responsavel'
+    )
+    finalizada_por = db.relationship(
+        'User',
+        foreign_keys=[finalizada_por_user_id],
+        back_populates='vistorias_que_finalizei'
+    )
+
+    obra = db.relationship("Obra", backref="vistorias")
     comunicacao = db.relationship("ComunicacaoObra", back_populates="vistorias")
+
+    fotos = db.relationship(
+        "FotoVistoria",
+        back_populates="vistoria",
+        cascade="all, delete-orphan"
+    )
 
 
 
