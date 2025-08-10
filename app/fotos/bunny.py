@@ -1,42 +1,54 @@
+# app/fotos/bunny.py
 import os
+import re
+import unicodedata
 import requests
-from werkzeug.utils import secure_filename
+from werkzeug.datastructures import FileStorage
 
+# .env
 BUNNY_STORAGE_ZONE = os.getenv("BUNNY_STORAGE_ZONE", "fotos-enotec-vistorias")
-BUNNY_ACCESS_KEY = os.getenv("BUNNY_STORAGE_KEY")
-BUNNY_STORAGE_URL = os.getenv("BUNNY_STORAGE_URL", f"https://br.storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}")
+BUNNY_STORAGE_URL  = os.getenv("BUNNY_STORAGE_URL", f"https://br.storage.bunnycdn.com/{BUNNY_STORAGE_ZONE}")
+BUNNY_ACCESS_KEY   = os.getenv("BUNNY_STORAGE_KEY")
+BUNNY_PULL_ZONE    = os.getenv("BUNNY_PULL_ZONE", f"{BUNNY_STORAGE_ZONE}.b-cdn.net")  # opcional, mas útil
 
-def upload_foto_vistoria(obra_nome, vistoria_id, foto_file):
-    """
-    Faz upload de uma imagem para a BunnyCDN na pasta /Relatorios/fotos/vistorias/{obra_nome}/{vistoria_id}/
-    Substitui espaços por "_" no nome da obra.
-    """
-    # Segurança: substituir espaços por _
-    obra_nome_sanitizado = obra_nome.replace(" ", "_")
+def _slugify(text: str) -> str:
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    text = re.sub(r"[^\w\s.-]", "", text)
+    text = re.sub(r"\s+", "-", text).strip("-")
+    return text
 
+def upload_foto_vistoria(obra_nome: str, vistoria_id: int, foto_file: FileStorage) -> dict:
+    """
+    Sobe uma foto para o BunnyCDN em:
+      /Relatorios/fotos/vistorias/{obra_slug}/{vistoria_id}/{arquivo}
+    Retorna: {"url": "<url_publica>", "nome": "<arquivo>"}
+    """
     if not BUNNY_ACCESS_KEY or not BUNNY_STORAGE_URL:
-        raise RuntimeError("❌ Configuração BunnyCDN ausente (BUNNY_ACCESS_KEY ou BUNNY_STORAGE_URL).")
+        raise RuntimeError("Config Bunny ausente: defina BUNNY_STORAGE_KEY e BUNNY_STORAGE_URL no .env")
 
-    nome_seguro = secure_filename(foto_file.filename)
-    obra_nome_sanitizado = obra_nome.replace(" ", "_")
-    caminho_bunny = f"Relatorios/fotos/vistorias/{obra_nome_sanitizado}/{vistoria_id}/{nome_seguro}"
+    obra_slug = _slugify(obra_nome or "obra")
+    nome_arquivo = _slugify(foto_file.filename or "foto.jpg")
+    caminho_relativo = f"Relatorios/fotos/vistorias/{obra_slug}/{vistoria_id}/{nome_arquivo}"
 
-    url_destino = f"{BUNNY_STORAGE_URL}/{caminho_bunny}"
+    url_upload = f"{BUNNY_STORAGE_URL}/{caminho_relativo}"
 
     headers = {
         "AccessKey": BUNNY_ACCESS_KEY,
-        "Content-Type": "application/octet-stream"
+        "Content-Type": "application/octet-stream",
     }
 
+    # importante: voltar o ponteiro caso o FileStorage já tenha sido lido antes
+    if hasattr(foto_file, "stream"):
+        try:
+            foto_file.stream.seek(0)
+        except Exception:
+            pass
+
+    resp = requests.put(url_upload, headers=headers, data=foto_file.read())
     try:
-        response = requests.put(url_destino, data=foto_file.read(), headers=headers)
-        response.raise_for_status()
+        resp.raise_for_status()
+    except requests.HTTPError as e:
+        raise RuntimeError(f"Erro Bunny {resp.status_code}: {resp.text}") from e
 
-        url_final = f"https://{BUNNY_STORAGE_ZONE}.b-cdn.net/{caminho_bunny}"
-        return {
-            "url": url_final,
-            "nome": nome_seguro
-        }
-
-    except Exception as e:
-        raise RuntimeError(f"Erro ao enviar imagem para BunnyCDN: {str(e)}")
+    url_publica = f"https://{BUNNY_PULL_ZONE}/{caminho_relativo}"
+    return {"url": url_publica, "nome": nome_arquivo}

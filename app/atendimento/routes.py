@@ -40,6 +40,9 @@ from dateutil import parser
 import base64
 import requests
 from io import BytesIO
+from flask import current_app  # <-- adicione
+import re
+
 atendimento_bp = Blueprint("atendimento", __name__)
 load_dotenv()
 
@@ -205,6 +208,7 @@ def criar_atendimento():
         flash("⚠️ Nome, endereço e obra são obrigatórios!", "danger")
         return redirect(url_for("atendimento.nova_comunicacao_vistoria"))
 
+    # 1) Comunicação
     nova_comunicacao = ComunicacaoObra(
         nome=nome,
         cpf=request.form.get("cpf"),
@@ -219,22 +223,21 @@ def criar_atendimento():
         usuario_id=session["user_id"],
         obra_id=obra_id
     )
-
     db.session.add(nova_comunicacao)
-    db.session.flush()
+    db.session.flush()  # para ter nova_comunicacao.id
 
+    # 2) Vistoria inicial
     nova_vistoria = VistoriaImovel(
-    comunicacao_id=nova_comunicacao.id,
-    data_1=datetime.now().date(),
-    hora_1=datetime.now().time(),   
-    obra_id=obra_id,
-    usuario_id=session["user_id"] if session.get("cargo") == "vistoriador" else None
-)
-
-
+        comunicacao_id=nova_comunicacao.id,
+        data_1=datetime.now().date(),
+        hora_1=datetime.now().time(),
+        obra_id=obra_id,
+        usuario_id=session["user_id"] if session.get("cargo") == "vistoriador" else None
+    )
     db.session.add(nova_vistoria)
-    db.session.commit()
+    db.session.commit()  # garante nova_vistoria.id
 
+    # 3) Logs
     registrar_acao(
         tipo_acao="criação",
         entidade="ComunicacaoObra",
@@ -242,7 +245,6 @@ def criar_atendimento():
         usuario_id=session["user_id"],
         observacao=f"Comunicação criada para '{nova_comunicacao.nome}' na obra ID {obra_id}."
     )
-
     registrar_acao(
         tipo_acao="criação",
         entidade="VistoriaImovel",
@@ -251,24 +253,40 @@ def criar_atendimento():
         observacao=f"Vistoria inicial registrada para comunicação ID {nova_comunicacao.id}."
     )
 
-    flash("✅ Atendimento criado com sucesso!", "success")
-    # Upload de fotos no momento da criação (se houver)
-    if "access_token" in session and "fotos" in request.files:
-        for foto in request.files.getlist("fotos"):
-            if foto.filename:
+    # 4) Upload de fotos (se houver) para BunnyCDN
+    fotos = request.files.getlist("fotos")
+    if fotos:
+        from app.fotos.bunny import upload_foto_vistoria  # garante import correto
+        obra = Obra.query.get(obra_id)
+        obra_nome = obra.nome if obra else "SemObra"
+
+        enviados = 0
+        for foto in fotos:
+            if foto and foto.filename:
                 try:
-                    resultado = upload_foto_vistoria(session["access_token"], vistoria.obra_id, vistoria.id, foto)
+                    resultado = upload_foto_vistoria(
+                        obra_nome=obra_nome,
+                        vistoria_id=nova_vistoria.id,
+                        foto_file=foto
+                    )
                     nova_foto = FotoVistoria(
-                        vistoria_id=vistoria.id,
+                        vistoria_id=nova_vistoria.id,
                         url=resultado["url"],
-                        titulo=foto.filename,
+                        titulo=resultado["nome"],
                         descricao=""
                     )
                     db.session.add(nova_foto)
+                    enviados += 1
                 except Exception as e:
-                    print(f"Erro: {e}")
+                    print(f"❌ Erro ao enviar {foto.filename}: {e}")
+                    flash(f"Erro ao enviar {foto.filename}: {e}", "danger")
         db.session.commit()
+        if enviados:
+            flash(f"✅ {enviados} foto(s) enviada(s) com sucesso.", "success")
+
+    flash("✅ Atendimento criado com sucesso!", "success")
     return redirect(url_for("atendimento.atendimento_unificado", id=nova_vistoria.id))
+
 
 @atendimento_bp.route("/<int:id>", methods=["GET", "POST"])
 def atendimento_unificado(id):
@@ -356,29 +374,25 @@ def atendimento_unificado(id):
             vistoriador_assumiu = True
 
         db.session.commit()
-        # Upload de fotos no momento da criação (se houver)
     fotos = request.files.getlist("fotos")
-    if fotos:
-        obra = Obra.query.get(obra_id)
-        for foto in fotos:
-            if foto.filename:
-                try:
-                    resultado = upload_foto_vistoria(
-                        token=os.getenv("BUNNY_STORAGE_KEY"),
-                        obra_nome=obra.nome,
-                        vistoria_id=nova_vistoria.id,
-                        foto=foto
-                    )
-                    nova_foto = FotoVistoria(
-                        vistoria_id=nova_vistoria.id,
-                        url=resultado["url"],
-                        titulo=resultado["nome"],
-                        descricao=""
-                    )
-                    db.session.add(nova_foto)
-                except Exception as e:
-                    print(f"Erro ao enviar foto: {e}")
-        db.session.commit()
+    for foto in fotos:
+        if foto and foto.filename:
+            try:
+                resultado = upload_foto_vistoria(
+                    obra_nome=vistoria.obra.nome,
+                    vistoria_id=vistoria.id,
+                    foto_file=foto
+                )
+                nova_foto = FotoVistoria(
+                    vistoria_id=vistoria.id,
+                    url=resultado["url"],
+                    titulo=resultado["nome"],
+                    descricao=""
+                )
+                db.session.add(nova_foto)
+            except Exception as e:
+                print(f"Erro ao enviar foto: {e}")
+
 
         db.session.commit()
         registrar_acao("edição", "VistoriaImovel", vistoria.id, session["user_id"],
@@ -585,7 +599,7 @@ def editar_atendimento(id):
     obras = Obra.query.all()
 
     if request.method == "POST":
-        # 📞 DADOS DA COMUNICAÇÃO
+        # 📞 Comunicação
         comunicacao.nome = request.form.get("nome")
         comunicacao.cpf = request.form.get("cpf")
         comunicacao.telefone = request.form.get("telefone")
@@ -598,7 +612,7 @@ def editar_atendimento(id):
         comunicacao.assinatura = request.form.get("assinatura")
         comunicacao.obra_id = request.form.get("obra_id")
 
-        # 🏘️ DADOS DA VISTORIA
+        # 🏘️ Vistoria
         if not vistoria:
             vistoria = VistoriaImovel(comunicacao_id=id)
             db.session.add(vistoria)
@@ -618,9 +632,11 @@ def editar_atendimento(id):
         vistoria.calcada = request.form.get("calcada")
         vistoria.observacoes = request.form.get("observacoes")
         vistoria.assinatura_base64 = request.form.get("assinatura_base64")
-        vistoria.obra_id = request.form.get("obra_id")
 
-        # Tentativas com parsing seguro
+        # mantém obra da vistoria alinhada com a comunicação
+        vistoria.obra_id = comunicacao.obra_id
+
+        # ⏱️ Tentativas (date/time seguros)
         vistoria.data_1 = parse_date_safe(request.form.get("data_1"))
         vistoria.hora_1 = parse_time_safe(request.form.get("hora_1"))
         vistoria.data_2 = parse_date_safe(request.form.get("data_2"))
@@ -628,41 +644,60 @@ def editar_atendimento(id):
         vistoria.data_3 = parse_date_safe(request.form.get("data_3"))
         vistoria.hora_3 = parse_time_safe(request.form.get("hora_3"))
 
+        # 1º commit: garantir IDs atualizados
         try:
             db.session.commit()
-            flash("✅ Atendimento atualizado com sucesso!", "success")
         except Exception as e:
             db.session.rollback()
-            print("Erro ao salvar:", e)
+            current_app.logger.exception("Erro ao salvar:", exc_info=e)
             flash("❌ Erro ao salvar alterações.", "danger")
+            return redirect(url_for("atendimento.editar_atendimento", id=id))
 
-        # Upload de fotos para BunnyCDN
+        # 📸 Upload de fotos (somente no POST)
+        enviados_count = 0
         if "fotos" in request.files and vistoria and vistoria.obra_id:
-            fotos = request.files.getlist("fotos")
-            for foto in fotos:
-                if foto and foto.filename:
-                    try:
-                        obra = Obra.query.get(vistoria.obra_id)
-                        obra_nome = obra.nome if obra else "SemObra"
+            fotos = request.files.getlist("fotos") or []
+            obra = Obra.query.get(vistoria.obra_id)
+            obra_nome = obra.nome if obra else "SemObra"
 
-                        resultado = upload_foto_vistoria(obra_nome, vistoria.id, foto)
-                        nova_foto = FotoVistoria(
-                            vistoria_id=vistoria.id,
-                            url=resultado["url"],
-                            titulo=foto.filename,
-                            descricao=""
-                        )
-                        db.session.add(nova_foto)
-                        db.session.commit()
-                        print(f"✅ Foto {foto.filename} enviada com sucesso.")
-                    except Exception as e:
-                        print(f"❌ Erro ao enviar {foto.filename}: {e}")
-                        flash(f"Erro ao enviar {foto.filename}: {e}", "danger")
+            for idx, foto in enumerate(fotos):
+                if not foto or not foto.filename:
+                    continue
+                try:
+                    # usa seu service centralizado
+                    resultado = upload_foto_vistoria(obra_nome, vistoria.id, foto)
+                    titulo_foto = (request.form.get(f"titulo_foto_{idx}") or foto.filename).strip()
 
+
+                    nova_foto = FotoVistoria(
+                        vistoria_id=vistoria.id,
+                        url=resultado["url"],
+                        titulo=titulo_foto,
+                        descricao=""
+                    )
+                    db.session.add(nova_foto)
+                    enviados_count += 1
+                except Exception as e:
+                    current_app.logger.exception(f"Erro ao enviar {foto.filename}: {e}")
+                    flash(f"❌ Erro ao enviar {foto.filename}: {e}", "danger")
+
+            # commit único para todas as fotos
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.exception("Erro ao salvar fotos:", exc_info=e)
+                flash("❌ Erro ao salvar fotos.", "danger")
+
+        if enviados_count:
+            flash(f"✅ {enviados_count} foto(s) enviada(s) com sucesso.", "success")
+
+        flash("✅ Atendimento atualizado com sucesso!", "success")
         return redirect(url_for("atendimento.editar_atendimento", id=id))
 
-    # GET: carregar página com fotos
-    fotos_vistoria = FotoVistoria.query.filter_by(vistoria_id=vistoria.id).all() if vistoria else []
+    # GET (edição): carrega SOMENTE as fotos vinculadas a esta vistoria
+    fotos_vistoria = FotoVistoria.query.filter_by(vistoria_id=vistoria.id).order_by(FotoVistoria.id.desc()).all() if vistoria else []
+
     return render_template(
         "atendimento/editar_atendimento.html",
         comunicacao=comunicacao,
@@ -697,19 +732,30 @@ def gerar_laudo_weasy(id):
     # 🧼 Nome da obra com underline
     obra_nome_sanitizado = obra.nome.replace(" ", "_") if obra and obra.nome else "Obra"
 
+    public_base = current_app.config.get("BUNNY_PUBLIC_BASE")
+
     fotos_db = FotoVistoria.query.filter_by(vistoria_id=vistoria.id).all()
     fotos_base64 = []
 
     for f in fotos_db:
         try:
-            # 🔁 Substitui espaços por underline na URL também, para fotos antigas
-            url_segura = f.url.replace(" ", "_")
-            response = requests.get(url_segura)
-            response.raise_for_status()
-            img_b64 = base64.b64encode(response.content).decode("utf-8")
+            # 1) normaliza domínio para a sua Pull Zone oficial
+            url = (f.url or "").replace(" ", "%20")
+            if public_base:
+                url = re.sub(r"^https?://[^/]+", public_base, url)
+
+            # 2) tenta baixar com cabeçalhos amigáveis
+            headers = {
+                "User-Agent": "Mozilla/5.0",
+                "Referer": public_base or "http://localhost"
+            }
+            resp = requests.get(url, headers=headers, timeout=30)
+            resp.raise_for_status()
+
+            img_b64 = base64.b64encode(resp.content).decode("utf-8")
             fotos_base64.append({
-                "titulo": f.titulo or f.url.split("/")[-1],
-                "url": url_segura,
+                "titulo": f.titulo or (url.split("/")[-1] or "Foto"),
+                "url": url,
                 "base64": img_b64
             })
         except Exception as e:

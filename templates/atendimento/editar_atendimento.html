@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <title>Editar Atendimento</title>
@@ -7,222 +8,265 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 </head>
-<body class="bg-light">
-<div class="container py-4">
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
+<body class="bg-light">
+  <div class="container py-4">
+
+    {% macro slug(texto) -%}
+      {{- texto
+        |lower
+        |replace(' ', '-')
+        |replace('ç','c')|replace('á','a')|replace('à','a')|replace('â','a')|replace('ã','a')
+        |replace('é','e')|replace('ê','e')|replace('í','i')
+        |replace('ó','o')|replace('ô','o')|replace('õ','o')
+        |replace('ú','u')|replace('ü','u')
+      -}}
+    {%- endmacro %}
+    {% set BUNNY_BASE = 'https://enotec-vistorias-comunicacoes.b-cdn.net' %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <div class="container mt-3">
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    <div class="container mt-3">
+      {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <h3 class="mb-4">✏️ Editar Atendimento #{{ comunicacao.id }}</h3>
+
+    <!-- Bloco: Assumir Vistoria -->
+    {% if session.cargo in ['admin', 'vistoriador'] %}
+      {% if session.cargo == 'vistoriador' and vistoria and not vistoria.usuario %}
+        <form method="POST" action="{{ url_for('atendimento.assumir_vistoria', id=comunicacao.id) }}" class="mb-3">
+          <button type="submit" class="btn btn-outline-warning w-100">
+            <i class="bi bi-person-plus"></i> 📌 Assumir esta Vistoria
+          </button>
+        </form>
+      {% elif vistoria.usuario %}
+        <div class="alert alert-info d-flex justify-content-between align-items-center">
+          <div>
+            <i class="bi bi-person-check-fill"></i>
+            <strong>Vistoriador responsável:</strong>
+            <span class="badge bg-info text-dark">{{ vistoria.usuario.nome }}</span>
+          </div>
+        </div>
+      {% endif %}
+    {% endif %}
+
+    <form id="form-editar" method="POST" enctype="multipart/form-data" autocomplete="off">
+
+
+      <!-- Bloco: Comunicação -->
+      <h5>📞 Dados da Comunicação</h5>
+
+      <div class="row g-2">
+        <div class="col-md-4"><label>Nome</label><input type="text" name="nome" class="form-control" value="{{ comunicacao.nome }}"></div>
+        <div class="col-md-4"><label>CPF</label><input type="text" name="cpf" class="form-control" value="{{ comunicacao.cpf }}"></div>
+        <div class="col-md-4"><label>Telefone</label><input type="text" name="telefone" class="form-control" value="{{ comunicacao.telefone }}"></div>
+        <div class="col-md-4"><label>Endereço</label><input type="text" name="endereco" class="form-control" value="{{ comunicacao.endereco }}"></div>
+        <div class="col-md-2"><label>Bairro</label><input type="text" name="bairro" class="form-control" value="{{ comunicacao.bairro }}"></div>
+        <div class="col-md-2"><label>Número</label><input type="text" name="numero" class="form-control" value="{{ comunicacao.numero }}"></div>
+        <div class="col-md-2">
+          <label>Comunicado</label>
+          <select name="comunicado" class="form-select">
+            <option value="Presencial" {% if comunicacao.comunicado=='Presencial' %}selected{% endif %}>Presencial</option>
+            <option value="Panfleto" {% if comunicacao.comunicado=='Panfleto' %}selected{% endif %}>Panfleto</option>
+            <option value="Telefone/Whatsapp" {% if comunicacao.comunicado=='Telefone/Whatsapp' %}selected{% endif %}>Telefone/Whatsapp</option>
+          </select>
+        </div>
+        <div class="col-md-2"><label>Economia</label><input type="text" name="economia" class="form-control" value="{{ comunicacao.economia }}"></div>
+        <div class="col-md-2">
+          <label>Tipo Imóvel</label>
+          <select name="tipo_imovel" class="form-select">
+            {% for tipo in ['Casa', 'Comércio', 'Mix', 'Templo Religioso', 'Escola', 'Terreno/Construção','Salão/Garagem'] %}
+              <option value="{{ tipo }}" {% if comunicacao.tipo_imovel==tipo %}selected{% endif %}>{{ tipo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4"><label>Assinatura</label><input type="text" name="assinatura" class="form-control" value="{{ comunicacao.assinatura }}"></div>
+        <div class="col-md-4">
+          <label>Obra</label>
+          <select name="obra_id" class="form-select">
+            {% for obra in obras %}
+              <option value="{{ obra.id }}" {% if comunicacao.obra_id==obra.id %}selected{% endif %}>{{ obra.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <hr>
+
+      <!-- Bloco: Vistoria -->
+      <h5>🏘️ Vistoria</h5>
+
+      <!-- Tentativas de Vistoria -->
+      <h5 class="mt-4">📅 Tentativas de Vistoria</h5>
+      <div class="row g-2">
+        {% for i in range(1, 4) %}
+          <div class="col-md-3">
+            <label for="data_{{ i }}">Data {{ i }}</label>
+            <input type="date" name="data_{{ i }}" class="form-control"
+              value="{% if vistoria['data_' ~ i] %}{{ vistoria['data_' ~ i].strftime('%Y-%m-%d') }}{% endif %}">
+          </div>
+          <div class="col-md-3">
+            <label for="hora_{{ i }}">Hora {{ i }}</label>
+            <input type="time" name="hora_{{ i }}" class="form-control" value="{{ vistoria['hora_' ~ i] or '' }}">
           </div>
         {% endfor %}
       </div>
-    {% endif %}
-  {% endwith %}
 
-  <h3 class="mb-4">✏️ Editar Atendimento #{{ comunicacao.id }}</h3>
-
-  <!-- Bloco: Assumir Vistoria -->
-  {% if session.cargo in ['admin', 'vistoriador'] %}
-    {% if session.cargo == 'vistoriador' and vistoria and not vistoria.usuario %}
-      <form method="POST" action="{{ url_for('atendimento.assumir_vistoria', id=comunicacao.id) }}" class="mb-3">
-        <button type="submit" class="btn btn-outline-warning w-100">
-          <i class="bi bi-person-plus"></i> 📌 Assumir esta Vistoria
-        </button>
-      </form>
-    {% elif vistoria.usuario %}
-      <div class="alert alert-info d-flex justify-content-between align-items-center">
-        <div>
-          <i class="bi bi-person-check-fill"></i>
-          <strong>Vistoriador responsável:</strong>
-          <span class="badge bg-info text-dark">{{ vistoria.usuario.nome }}</span>
+      <div class="row g-2">
+        <div class="col-md-4">
+          <label>Uso</label>
+          <select name="uso" class="form-select">
+            <option value="residencial" {% if vistoria.uso=='residencial' %}selected{% endif %}>Residencial</option>
+            <option value="comercial" {% if vistoria.uso=='comercial' %}selected{% endif %}>Comercial</option>
+            <option value="misto" {% if vistoria.uso=='misto' %}selected{% endif %}>Misto</option>
+          </select>
         </div>
-      </div>
-    {% endif %}
-  {% endif %}
-
-  <form method="POST" enctype="multipart/form-data" autocomplete="off">
-
-    <!-- Bloco: Comunicação -->
-
-    <h5>📞 Dados da Comunicação</h5>
-    
-    <div class="row g-2">
-      <div class="col-md-4"><label>Nome</label><input type="text" name="nome" class="form-control" value="{{ comunicacao.nome }}"></div>
-      <div class="col-md-4"><label>CPF</label><input type="text" name="cpf" class="form-control" value="{{ comunicacao.cpf }}"></div>
-      <div class="col-md-4"><label>Telefone</label><input type="text" name="telefone" class="form-control" value="{{ comunicacao.telefone }}"></div>
-      <div class="col-md-4"><label>Endereço</label><input type="text" name="endereco" class="form-control" value="{{ comunicacao.endereco }}"></div>
-      <div class="col-md-2"><label>Bairro</label><input type="text" name="bairro" class="form-control" value="{{ comunicacao.bairro }}"></div>
-      <div class="col-md-2"><label>Número</label><input type="text" name="numero" class="form-control" value="{{ comunicacao.numero }}"></div>
-      <div class="col-md-2">
-        <label>Comunicado</label>
-        <select name="comunicado" class="form-select">
-          <option value="Presencial" {% if comunicacao.comunicado == 'Presencial' %}selected{% endif %}>Presencial</option>
-          <option value="Panfleto" {% if comunicacao.comunicado == 'Panfleto' %}selected{% endif %}>Panfleto</option>
-          <option value="Telefone/Whatsapp" {% if comunicacao.comunicado == 'Telefone/Whatsapp' %}selected{% endif %}>Telefone/Whatsapp</option>
-        </select>
-      </div>
-      <div class="col-md-2"><label>Economia</label><input type="text" name="economia" class="form-control" value="{{ comunicacao.economia }}"></div>
-      <div class="col-md-2">
-        <label>Tipo Imóvel</label>
-        <select name="tipo_imovel" class="form-select">
-          {% for tipo in ['Casa', 'Comércio', 'Mix', 'Templo Religioso', 'Escola', 'Terreno/Construção', 'Salão/Garagem'] %}
-            <option value="{{ tipo }}" {% if comunicacao.tipo_imovel == tipo %}selected{% endif %}>{{ tipo }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-4"><label>Assinatura</label><input type="text" name="assinatura" class="form-control" value="{{ comunicacao.assinatura }}"></div>
-      <div class="col-md-4">
-        <label>Obra</label>
-        <select name="obra_id" class="form-select">
-          {% for obra in obras %}
-            <option value="{{ obra.id }}" {% if comunicacao.obra_id == obra.id %}selected{% endif %}>{{ obra.nome }}</option>
-          {% endfor %}
-        </select>
-      </div>
-    </div>
-
-    <hr>
-
-    <!-- Bloco: Vistoria -->
-    <h5>🏘️ Vistoria</h5>
-    <!-- Tentativas de Vistoria -->
-
-  <h5 class="mt-4">📅 Tentativas de Vistoria</h5>
-<div class="row g-2">
-{% for i in range(1, 4) %}
-  <div class="col-md-3">
-    <label for="data_{{ i }}">Data {{ i }}</label>
-    <input type="date" name="data_{{ i }}" class="form-control"
-      value="{% if vistoria['data_' ~ i] %}{{ vistoria['data_' ~ i].strftime('%Y-%m-%d') }}{% endif %}">
-  </div>
-  <div class="col-md-3">
-    <label for="hora_{{ i }}">Hora {{ i }}</label>
-    <input type="time" name="hora_{{ i }}" class="form-control"
-      value="{{ vistoria['hora_' ~ i] or '' }}">
-  </div>
-{% endfor %}
-
-</div>
-
-    <div class="row g-2">
-      <div class="col-md-4">
-        <label>Uso</label>
-        <select name="uso" class="form-select">
-          <option value="residencial" {% if vistoria.uso == 'residencial' %}selected{% endif %}>Residencial</option>
-          <option value="comercial" {% if vistoria.uso == 'comercial' %}selected{% endif %}>Comercial</option>
-          <option value="misto" {% if vistoria.uso == 'misto' %}selected{% endif %}>Misto</option>
-        </select>
-      </div>
-      <div class="col-md-3"><label>Tipo Imóvel</label><input type="text" name="tipo_imovel" class="form-control" value="{{ vistoria.tipo_imovel }}"></div>
-      <div class="col-md-2">
-        <label>Soleira</label>
-        <select name="soleira" class="form-select">
-          <option value="positiva" {% if vistoria.soleira == 'positiva' %}selected{% endif %}>Positiva</option>
-          <option value="negativa" {% if vistoria.soleira == 'negativa' %}selected{% endif %}>Negativa</option>
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label>Calçada</label>
-        <select name="calcada" class="form-select">
-          <option value="cimento" {% if vistoria.calcada == 'cimento' %}selected{% endif %}>Cimento</option>
-          <option value="revestimento" {% if vistoria.calcada == 'revestimento' %}selected{% endif %}>Revestimento</option>
-          <option value="sem acabamento" {% if vistoria.calcada == 'sem acabamento' %}selected{% endif %}>Sem acabamento</option>
-        </select>
-      </div>
-      <div class="col-12"><label>Observações</label><textarea name="observacoes" class="form-control" rows="3">{{ vistoria.observacoes }}</textarea></div>
-    </div>
-
-    <!-- Assinatura -->
-    <h5 class="mt-4 mb-2">✍️ Assinatura do Morador</h5>
-    <div class="border p-2 bg-white">
-      <canvas id="signature-pad" width="400" height="150" style="border:1px solid #ccc;"></canvas>
-    </div>
-    <input type="hidden" id="assinatura_base64" name="assinatura_base64" value="{{ vistoria.assinatura_base64 }}">
-    <div class="mt-2">
-      <button type="button" class="btn btn-sm btn-danger" onclick="clearSignature()">Limpar</button>
-    </div>
-    {% if vistoria.assinatura_base64 %}
-      <p class="mt-2">Assinatura anterior:</p>
-      <img src="{{ vistoria.assinatura_base64 }}" alt="Assinatura" style="max-width:100%; border:1px solid #ccc;">
-    {% endif %}
-    <hr>
-<h5 class="mt-4 mb-2">📸 Fotos da Vistoria</h5>
-
-<!-- Upload -->
-<div class="mb-3">
-  <label for="fotos" class="form-label">Enviar novas fotos:</label>
-  <input type="file" class="form-control" name="fotos" id="fotos" multiple accept="image/*">
-</div>
-
-<!-- Visualização das fotos existentes -->
-<div class="row">
-  {% for foto in fotos_vistoria %}
-    <div class="col-md-4 mb-3">
-      <div class="card shadow-sm">
-        <img src="{{ foto.url }}" class="card-img-top" style="max-height: 200px; object-fit: cover;" alt="Foto da Vistoria">
-        <div class="card-body p-2">
-          <p class="small mb-2 text-truncate">{{ foto.titulo or "Sem título" }}</p>
-          {% if session.cargo in ['admin', 'vistoriador'] %}
-            <form method="POST" action="{{ url_for('fotos.excluir_foto', foto_id=foto.id) }}">
-              <button type="submit" class="btn btn-sm btn-outline-danger w-100">
-                <i class="bi bi-trash"></i> Excluir
-              </button>
-            </form>
-          {% endif %}
+        <div class="col-md-3"><label>Tipo Imóvel</label><input type="text" name="tipo_imovel" class="form-control" value="{{ vistoria.tipo_imovel }}"></div>
+        <div class="col-md-2">
+          <label>Soleira</label>
+          <select name="soleira" class="form-select">
+            <option value="positiva" {% if vistoria.soleira=='positiva' %}selected{% endif %}>Positiva</option>
+            <option value="negativa" {% if vistoria.soleira=='negativa' %}selected{% endif %}>Negativa</option>
+          </select>
         </div>
+        <div class="col-md-3">
+          <label>Calçada</label>
+          <select name="calcada" class="form-select">
+            <option value="cimento" {% if vistoria.calcada=='cimento' %}selected{% endif %}>Cimento</option>
+            <option value="revestimento" {% if vistoria.calcada=='revestimento' %}selected{% endif %}>Revestimento</option>
+            <option value="sem acabamento" {% if vistoria.calcada=='sem acabamento' %}selected{% endif %}>Sem acabamento</option>
+          </select>
+        </div>
+        <div class="col-12"><label>Observações</label><textarea name="observacoes" class="form-control" rows="3">{{ vistoria.observacoes }}</textarea></div>
+      </div>
+
+      <!-- Assinatura -->
+      <h5 class="mt-4 mb-2">✍️ Assinatura do Morador</h5>
+      <div class="border p-2 bg-white">
+        <canvas id="signature-pad" width="400" height="150" style="border:1px solid #ccc;"></canvas>
+      </div>
+      <input type="hidden" id="assinatura_base64" name="assinatura_base64" value="{{ vistoria.assinatura_base64 }}">
+      <div class="mt-2">
+        <button type="button" class="btn btn-sm btn-danger" onclick="clearSignature()">Limpar</button>
+      </div>
+      {% if vistoria.assinatura_base64 %}
+        <p class="mt-2">Assinatura anterior:</p>
+        <img src="{{ vistoria.assinatura_base64 }}" alt="Assinatura" style="max-width:100%; border:1px solid #ccc;">
+      {% endif %}
+
+      <hr>
+
+      <!-- Upload -->
+      <h5 class="mt-4 mb-2">📸 Fotos da Vistoria</h5>
+      <div class="mb-3">
+        <label for="fotos" class="form-label">Enviar novas fotos</label>
+        <input type="file" class="form-control" name="fotos" id="fotos" multiple accept="image/*">
+      </div>
+      <div id="preview-fotos" class="row g-3"></div>
+
+    </form> <!-- FECHA FORM PRINCIPAL -->
+
+    <!-- Fotos já enviadas -->
+    <div class="mt-4">
+      <h6 class="mb-2">Fotos existentes</h6>
+      <div class="row g-3">
+        {% for foto in fotos_vistoria %}
+          {% set obra_slug = slug(obra.nome) if obra else slug(comunicacao.obra.nome) %}
+          {% set nome_arquivo = (foto.nome_arquivo or foto.nome or foto.titulo or 'imagem').replace(' ', '%20') %}
+          {% set caminho_publico = BUNNY_BASE ~ '/Relatorios/fotos/vistorias/' ~ obra_slug ~ '/' ~ vistoria.id ~ '/' ~ nome_arquivo %}
+          <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+            <div class="card h-100 shadow-sm">
+              <div class="ratio ratio-4x3">
+                <img src="{{ foto.url or caminho_publico }}" class="card-img-top object-fit-cover" alt="Foto da Vistoria" loading="lazy">
+              </div>
+              <div class="card-body p-2">
+                <div class="small text-truncate" title="{{ foto.titulo or foto.nome or 'Sem título' }}">
+                  {{ foto.titulo or foto.nome or "Sem título" }}
+                </div>
+                {% if session.cargo in ['admin', 'vistoriador'] %}
+                <form method="POST" action="{{ url_for('fotos.excluir_foto', foto_id=foto.id) }}" class="mt-2">
+                  <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                    <i class="bi bi-trash"></i> Excluir
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="col-12">
+            <p class="text-muted">Nenhuma foto enviada ainda.</p>
+          </div>
+        {% endfor %}
       </div>
     </div>
-  {% else %}
-    <div class="col-12">
-      <p class="text-muted">Nenhuma foto enviada ainda.</p>
-    </div>
-  {% endfor %}
-</div>
 
+    <!-- Botões -->
     <hr>
     <div class="d-flex justify-content-between">
       <a href="{{ url_for('atendimento.dashboard_unificado') }}" class="btn btn-secondary">Cancelar</a>
-      <button type="submit" class="btn btn-success">Salvar Alterações</button>
+      <button type="submit" class="btn btn-success" form="form-editar">Salvar Alterações</button>
     </div>
-
-  </form>
-</div>
-
 <script>
-  const canvas = document.getElementById('signature-pad');
-  const input = document.getElementById('assinatura_base64');
-  const ctx = canvas.getContext('2d');
-  let isDrawing = false;
+(function () {
+  const inputArquivos = document.getElementById('fotos');
+  const container = document.getElementById('preview-fotos');
 
-  canvas.addEventListener('mousedown', () => { isDrawing = true });
-  canvas.addEventListener('mouseup', () => {
-    isDrawing = false;
-    input.value = canvas.toDataURL();
+  if (!inputArquivos || !container) return;
+
+  inputArquivos.addEventListener('change', () => {
+    container.innerHTML = '';
+
+    Array.from(inputArquivos.files).forEach((file, index) => {
+      const col = document.createElement('div');
+      col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
+
+      const card = document.createElement('div');
+      card.className = 'card h-100 shadow-sm';
+
+      const ratio = document.createElement('div');
+      ratio.className = 'ratio ratio-4x3';
+
+      const img = document.createElement('img');
+      img.className = 'card-img-top';
+      img.style.objectFit = 'cover';
+      img.alt = file.name;
+
+      const reader = new FileReader();
+      reader.onload = e => { img.src = e.target.result; };
+      reader.readAsDataURL(file);
+
+      const body = document.createElement('div');
+      body.className = 'card-body p-2';
+
+      // Campo de título
+      const inputTitulo = document.createElement('input');
+      inputTitulo.type = 'text';
+      inputTitulo.name = `titulo_foto_${index}`;
+      inputTitulo.className = 'form-control form-control-sm mt-2';
+      inputTitulo.placeholder = 'Título da foto';
+      inputTitulo.maxLength = 100;
+
+      body.appendChild(inputTitulo);
+      ratio.appendChild(img);
+      card.appendChild(ratio);
+      card.appendChild(body);
+      col.appendChild(card);
+
+      container.appendChild(col);
+    });
   });
-  canvas.addEventListener('mouseout', () => isDrawing = false);
-  canvas.addEventListener('mousemove', draw);
-
-  function draw(e) {
-    if (!isDrawing) return;
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#000';
-    const rect = canvas.getBoundingClientRect();
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-  }
-
-  function clearSignature() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    input.value = "";
-  }
+})();
 </script>
 
+  </div>
 </body>
 </html>

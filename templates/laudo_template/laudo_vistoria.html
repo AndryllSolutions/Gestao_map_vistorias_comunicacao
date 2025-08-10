@@ -4,73 +4,30 @@
   <meta charset="UTF-8">
   <title>Laudo de Vistoria Cautelar</title>
   <style>
-    @page {
-      size: A4;
-      margin: 2cm;
-    }
-
-    body {
-      font-family: Arial, sans-serif;
-      font-size: 12px;
-      color: #000;
-      margin: 0;
-      padding: 0;
-    }
-
-    .page {
-      page-break-after: always;
-      padding: 2cm;
-    }
-
-    h1, h2 {
-      text-align: center;
-    }
-
-    h1 {
-      font-size: 18px;
-      margin-bottom: 20px;
-    }
-
-    h2 {
-      font-size: 14px;
-      margin-top: 30px;
-      margin-bottom: 10px;
-      border-bottom: 1px solid #ccc;
-      padding-bottom: 5px;
-    }
-
-    .campo {
-      margin-bottom: 8px;
-    }
-
-    .box {
-      background: #f2f2f2;
-      padding: 10px;
-      border: 1px solid #ccc;
-      font-size: 11px;
-    }
-
-    .assinaturas {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 100px;
-      text-align: center;
-    }
-
-    .assinaturas div {
-      width: 30%;
-    }
-
-    .assinaturas .linha {
-      border-top: 1px solid #000;
-      margin-top: 40px;
-      padding-top: 5px;
-      font-size: 11px;
-    }
+    @page { size: A4; margin: 2cm; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #000; margin: 0; padding: 0; }
+    .page { page-break-after: always; }
+    h1, h2 { text-align: center; }
+    h1 { font-size: 18px; margin: 0 0 16px; }
+    h2 { font-size: 14px; margin: 24px 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 6px; }
+    .campo { margin-bottom: 8px; }
+    .box { background: #f2f2f2; padding: 10px; border: 1px solid #ccc; font-size: 11px; }
+    /* Assinaturas */
+    .assinaturas { width: 100%; border-collapse: collapse; margin-top: 24px; }
+    .assinaturas td { width: 33%; text-align: center; vertical-align: top; padding: 0 8px; }
+    .assinatura-caixa { height: 80px; border: 1px solid #000; margin: 0 0 6px; padding: 4px; }
+    .linha { border-top: 1px solid #000; margin-top: 8px; padding-top: 4px; font-size: 11px; }
+    /* Fotos */
+    .fotos-tabela { width: 100%; border-collapse: separate; border-spacing: 10px; margin-top: 8px; }
+    .fotos-tabela td { width: 50%; text-align: center; vertical-align: top; }
+    .foto-box { border: 1px solid #ccc; padding: 4px; }
+    .foto-img { max-width: 100%; max-height: 300px; display: block; margin: 0 auto 6px; }
+    .foto-cap { font-size: 11px; }
   </style>
 </head>
 <body>
 
+  <!-- PÁGINA 1 -->
   <div class="page">
     <h1>LAUDO DE VISTORIA CAUTELAR</h1>
 
@@ -87,8 +44,8 @@
 
     <h2>📅 Tentativas de Vistoria</h2>
     <div class="campo">1ª Tentativa: {{ vistoria.data_1.strftime('%d/%m/%Y') if vistoria.data_1 else '—' }} às {{ vistoria.hora_1 or '—' }}</div>
-    <div class="campo">2ª Tentativa: {{ vistoria.segunda_tentativa.strftime('%d/%m/%Y %H:%M') if vistoria.segunda_tentativa else '—' }}</div>
-    <div class="campo">3ª Tentativa: {{ vistoria.terceira_tentativa.strftime('%d/%m/%Y %H:%M') if vistoria.terceira_tentativa else '—' }}</div>
+    <div class="campo">2ª Tentativa: {{ vistoria.data_2.strftime('%d/%m/%Y') if vistoria.data_2 else '—' }} às {{ vistoria.hora_2 or '—' }}</div>
+    <div class="campo">3ª Tentativa: {{ vistoria.data_3.strftime('%d/%m/%Y') if vistoria.data_3 else '—' }} às {{ vistoria.hora_3 or '—' }}</div>
 
     <h2>📄 Observações</h2>
     <div class="campo">{{ vistoria.observacoes or "—" }}</div>
@@ -105,65 +62,67 @@
     </div>
   </div>
 
-  <!-- Página de assinaturas -->
-  <hr style="margin-top: 40px; margin-bottom: 20px;">
+  <!-- PÁGINA 2: Assinaturas + Fotos -->
+  <div class="page">
+    <h2>✍️ Assinaturas</h2>
+    <table class="assinaturas">
+      <tr>
+        <!-- Engenheiro -->
+        <td>
+          <div class="assinatura-caixa"></div>
+          <div class="linha">
+            <strong>Engenheiro Responsável</strong><br>
+            Fulano de Tal<br>
+            CREA: 0000000000-D
+          </div>
+        </td>
 
-<table style="width: 100%; font-size: 12px;">
-  <tr>
-    <!-- Assinatura do morador -->
-    
+        <!-- Vistoriador -->
+        <td>
+          <div class="assinatura-caixa"></div>
+          <div class="linha">
+            <strong>Vistoriador</strong><br>
+            {{ vistoria.usuario.nome if vistoria.usuario else '________________' }}<br>
+            RG: {{ vistoria.usuario.rg if vistoria.usuario and vistoria.usuario.rg else '___________' }}
+          </div>
+        </td>
 
-    <!-- Assinatura do engenheiro -->
-    <td style="width: 33%; text-align: center;">
-      <div style="height: 80px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
-      <br>
-      <strong>Engenheiro Responsável</strong><br>
-      Fulano de Tal<br>
-      CREA: 0000000000-D
-    </td>
+        <!-- Morador -->
+        <td>
+          {% if vistoria.assinatura_base64 %}
+            <img src="{{ vistoria.assinatura_base64 }}" alt="Assinatura do Morador" class="assinatura-caixa" style="object-fit:contain;">
+          {% else %}
+            <div class="assinatura-caixa"></div>
+          {% endif %}
+          <div class="linha">
+            <strong>Morador</strong><br>
+            {{ comunicacao.nome or '________________' }}<br>
+            CPF: {{ comunicacao.cpf or '___.___.___-__' }}
+          </div>
+        </td>
+      </tr>
+    </table>
 
-    <!-- Assinatura do vistoriador -->
-    <td style="width: 33%; text-align: center;">
-      <div style="height: 80px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
-      <br>
-      <strong>Vistoriador</strong><br>
-      {{ vistoria.usuario.nome if vistoria.usuario else '________________' }}<br>
-      RG: {{ vistoria.usuario.rg if vistoria.usuario and vistoria.usuario.rg else '___________' }}
-    </td>
-    
-    <td style="width: 33%; text-align: center;">
-      {% if vistoria.assinatura_base64 %}
-        <img src="{{ vistoria.assinatura_base64 }}" alt="Assinatura do Morador" style="max-width: 200px; border: 1px solid #000; padding: 4px;">
-      {% else %}
-        <div style="height: 80px; border-bottom: 1px solid #000; margin-bottom: 5px;"></div>
-      {% endif %}
-      <br>
-      <strong>Morador</strong><br>
-      {{ comunicacao.nome or '________________' }}<br>
-      CPF: {{ comunicacao.cpf or '___._ _ _._ _ _-__' }}
-    </td>
-  </tr>
-{% if fotos %}
-<h2>📷 Fotos da Vistoria</h2>
-<table style="width: 100%; border-spacing: 10px;">
-  {% for foto in fotos|batch(2, '&nbsp;') %}
-  <tr>
-    {% for f in foto %}
-    <td style="width: 50%; text-align: center;">
-      {% if f != '&nbsp;' %}
-          <img src="data:image/jpeg;base64,{{ f.base64 }}" alt="Foto" style="max-width: 100%; max-height: 300px; border: 1px solid #ccc;">
-        <span style="font-size: 11px;">{{ f.nome or "Sem título" }}</span>
-
-      {% endif %}
-    </td>
-    {% endfor %}
-  </tr>
-  {% endfor %}
-</table>
-{% endif %}
-
-
-</table>
+    {% if fotos %}
+      <h2>📷 Fotos da Vistoria</h2>
+      <table class="fotos-tabela">
+        {% for linha in fotos|batch(2, {}) %}
+          <tr>
+            {% for f in linha %}
+              <td>
+                {% if f and f.get('base64') %}
+                  <div class="foto-box">
+                    <img class="foto-img" src="data:image/jpeg;base64,{{ f.base64 }}" alt="{{ f.titulo or 'Foto' }}">
+                    <div class="foto-cap">{{ f.titulo or 'Sem título' }}</div>
+                  </div>
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </table>
+    {% endif %}
+  </div>
 
 </body>
 </html>
